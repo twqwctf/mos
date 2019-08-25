@@ -1,0 +1,656 @@
+VPas Version 1.05 [30-Jan-89]
+
+
+ 0    1: {$X+}
+ 0    2: unit menuunit;
+ 0    3: 
+ 0    4: (**********************************************************************************
+ 0    5: 
+ 0    6:  unit menuunit
+ 0    7: 
+ 0    8:  contents: This unit contains all modules that are responsible for the menubar
+ 0    9:            functions. In order for the program to perform such operations, the
+ 0   10:            system function must be called which calls the UNIX system. This
+ 0   11:            enables the program to work with the actual system function such
+ 0   12:            as cp,mv,rm etc...
+ 0   13: 
+ 0   14:  **********************************************************************************)
+ 0   15: 
+ 0   16: interface
+ 0   17: 
+ 0   18: uses rawio,introunit,dirlsunit,listpackunit; 
+ 0   19: 
+ 0   20: const
+ 0   21:     messageline=26;
+ 0   22:     bigdirline=30;
+ 0   23: 
+ 0   24: var 
+ 0   25:     bottllist,       (* variable which, upon traversing the linked list searching
+ 0   26:                         for tagged files, keeps the last index when the procedure
+ 0   27:                         gettag exited *)
+ 0   28:     reg,             (* variable which is the index for the tagged file (if any) *)
+ 0   29:     dup,             (* is assigned to reg to determine whether a duplicate
+ 0   30:                         register (reg) was returned from gettag *)
+ 0   31:     again,           (* counter to signify the end of a system calling loop *) 
+ 0   32:     spot,            (* variable which holds the next available index to add to
+ 0   33:                         a packed array (command) *)  
+ 0   34:     newspot          (* similar to spot; a re-assigned index to fill 'command' *)
+ 0   35:        :integer;
+ 0   36: 
+ 0   37: 
+ 0   38: procedure gettag(var filelist:filedir;var tmpllist,llist,reg:integer;var foundtag
+ 0   39:                  :boolean);
+ 0   40: procedure addpathandname(var aname:nametype;var apath,command:string256;
+ 0   41:                          var spot,newspot:integer);
+ 0   42: procedure copy(var filelist:filedir;var llist,cond:integer;
+ 0   43:                firstpath,secondpath:string256);
+ 0   44: procedure move(var filelist:filedir;var llist,cond:integer;
+ 0   45:                firstpath,secondpath:string256);
+ 0   46: procedure deletefile(var filelist:filedir;var llist,cond:integer;
+ 0   47:                      apath:string256);
+VPas Version 1.05 [30-Jan-89]
+
+
+ 0   48: procedure getname(var newname:nametype);
+ 0   49: procedure rename(var filelist:filedir;var llist,cond:integer;
+ 0   50:                      apath:string256);
+ 0   51: procedure makedir(var filelist:filedir;var cond:integer;apath:string256);
+ 0   52: procedure remdir (var filelist:filedir;var llist,cond:integer;apath:string256);
+ 0   53: procedure edit   (var filelist:filedir;var llist,cond:integer;apath:string256);
+ 0   54: procedure view   (var filelist:filedir;var llist,cond:integer;apath:string256);
+ 0   55: 
+ 0   56: implementation
+ 0   57: 
+ 0   58: procedure gettag;
+ 0   59: 
+ 0   60: (**********************************************************************************
+ 0   61: 
+ 0   62:  Procedure gettag
+ 0   63:  Purpose: This procedure traverses a directory and, if finding a tagged file,
+ 0   64:           returns the index. If no tagged files are found, the present index,
+ 0   65:           llist, is simply returned.
+ 0   66: 
+ 0   67:  Parameters: filelist, tmpllist, llist, reg & foundtag
+ 0   68:  Called by: copy, move, deletefile, rename, view & edit
+ 0   69:  Calls: none
+ 0   70: 
+ 0   71:  **********************************************************************************)
+ 0   72: 
+ 0   73: var temp:integer;
+ 0   74: 
+ 0   75:    begin
+ 1   76: 
+ 1   77:    (* traverse list until reach end or tagged file *)
+ 1   78: 
+ 1   79:    while (not (filelist[tmpllist].tag)) and (filelist[tmpllist].next<>0) do
+ 1   80:       tmpllist:=filelist[tmpllist].next;
+ 1   81: 
+ 1   82:    (* return the current tmpllist if finds a tagged file *)
+ 1   83: 
+ 1   84:    if (filelist[tmpllist].tag)
+ 1   85:       then
+ 1   86:       begin
+ 2   87:       foundtag:=TRUE;
+ 2   88:       reg:=tmpllist;
+ 2   89:       tmpllist:=filelist[tmpllist].next;
+ 2   90:       end 
+ 1   91: 
+ 1   92:       else
+ 1   93: 
+ 1   94:       (* otherwise simply return the current index, llist *)
+VPas Version 1.05 [30-Jan-89]
+
+
+ 1   95:  
+ 1   96:       if (not(foundtag)) then
+ 1   97:          reg:=llist;
+ 1   98: 
+ 1   99:       if (tmpllist=0) then begin 
+ 2  100:          temp:=1;
+ 2  101:          while (filelist[temp].next<>0) do
+ 2  102:             temp:=filelist[temp].next;
+ 2  103:          tmpllist:=temp;  
+ 2  104:          reg:=temp;
+ 2  105:          end;
+ 1  106:                     
+ 1  107:    
+ 1  108: 
+ 1  109:    gotoxy(bigdirline,1);
+ 1  110:    end;
+ 0  111: 
+ 0  112: procedure addpathandname;
+ 0  113: 
+ 0  114: (******************************************************************************
+ 0  115: 
+ 0  116:  Procedure addpathname
+ 0  117:  Purpose: This procedure accepts a name, a path, a command, and an index and adds
+ 0  118:           the path and name respectively to the command at index
+ 0  119: 
+ 0  120:  Parameters: aname, apath, command, spot and newspot
+ 0  121:  Called by: copy, move, deletefile, rename, makedir, remdir, edit and view
+ 0  122:  Calls: none
+ 0  123: 
+ 0  124:  ******************************************************************************)
+ 0  125: 
+ 0  126: var i,j:integer;
+ 0  127: 
+ 0  128:    begin
+ 1  129:        command[spot]:=' ';
+ 1  130:        for i:=1 to pathsize(apath) do
+ 1  131:           command[spot+i]:=apath[i];
+ 1  132:        newspot:=spot+1+i;
+ 1  133:        command[newspot]:='/';
+ 1  134:        j:=0;
+ 1  135:        repeat
+ 1  136:           j:=j+1;
+ 1  137:           newspot:=newspot+1;
+ 1  138:           command[newspot]:=aname[j];
+ 1  139:        until (aname[j]=' ') or (j=namesize);
+ 1  140:    end;
+ 0  141: 
+VPas Version 1.05 [30-Jan-89]
+
+
+ 0  142: 
+ 0  143: procedure copy;            (* cp *)
+ 0  144: 
+ 0  145: (*******************************************************************************
+ 0  146: 
+ 0  147:  Procedure copy
+ 0  148:  Purpose: This procedure determines the correct command and calls system with
+ 0  149:           'cp' + firstpath + filelist.name secondpath + filelist.name. 
+ 0  150:           Multiple copies are possible with tagged files.  
+ 0  151: 
+ 0  152:  Parameters: filelist, llist, cond, firstpath, secondpath
+ 0  153:  Called by: getcom
+ 0  154:  Calls: gettag, addpathandname, gotoxy, system
+ 0  155: 
+ 0  156:  *******************************************************************************)
+ 0  157: 
+ 0  158: var i:integer; 
+ 0  159:     foundtag:boolean;
+ 0  160:     command,tmpcommand:string256;
+ 0  161: 
+ 0  162:     begin
+ 1  163:     foundtag:=FALSE;
+ 1  164:     again:=0;
+ 1  165:     dup:=0;
+ 1  166:     bottllist:=1;
+ 1  167:     gettag(filelist,bottllist,llist,reg,foundtag);
+ 1  168: 
+ 1  169:     (* repeat system calls for tagged files *)
+ 1  170:     
+ 1  171:     repeat
+ 1  172:        tmpcommand:=command;
+ 1  173:        gotoxy(40,50);
+ 1  174:        command[1]:='c';
+ 1  175:        command[2]:='p';
+ 1  176:        spot:=3;
+ 1  177:        addpathandname(filelist[reg].name,firstpath,command,spot,newspot);
+ 1  178: 
+ 1  179:        command[newspot+1]:=' ';
+ 1  180:        for i:=1 to pathsize(secondpath) do
+ 1  181:           command[newspot+1+i]:=secondpath[i];
+ 1  182:        command[newspot+2+i]:=chr(0);
+ 1  183: 
+ 1  184:        gotoxy(bigdirline,1);
+ 1  185: 
+ 1  186:        if (tmpcommand<>command) then begin
+ 2  187:           cond:=system(command);
+ 2  188: 
+VPas Version 1.05 [30-Jan-89]
+
+
+ 2  189:           gotoxy(messageline,1);
+ 2  190:           if (cond<>0)
+ 2  191:              then
+ 2  192:              write('Error in copying: ',firstpath,'/',filelist[reg].name)
+ 2  193:  
+ 2  194:              else
+ 2  195:              write('Copying ',firstpath,'/',filelist[reg].name);
+ 2  196:           end;
+ 1  197: 
+ 1  198:        dup:=bottllist;
+ 1  199:        gettag(filelist,bottllist,llist,reg,foundtag);
+ 1  200:        if (dup=bottllist) then again:=again+1;
+ 1  201:        
+ 1  202:        until (again=2); 
+ 1  203:     
+ 1  204:     end;
+ 0  205: 
+ 0  206: procedure move;            (* mv *)
+ 0  207: 
+ 0  208: (******************************************************************************
+ 0  209: 
+ 0  210:  Procedure move
+ 0  211:  Purpose: This procedure determines command and calls system with 'cp' + 
+ 0  212:           firstpath + filelist.name secondpath 
+ 0  213:           In addition, multiple moves are possible if files are tagged. 
+ 0  214: 
+ 0  215:  Parameters: filelist, llist, cond, firstpath, secondpath
+ 0  216:  Called by: getcom
+ 0  217:  Calls: gettag, addpathandname, gotoxy, system
+ 0  218: 
+ 0  219:  ******************************************************************************)
+ 0  220: 
+ 0  221: var i:integer; 
+ 0  222:     foundtag:boolean;
+ 0  223:     command,tmpcommand:string256;
+ 0  224: 
+ 0  225:     begin
+ 1  226:     foundtag:=FALSE;
+ 1  227:     again:=0;
+ 1  228:     dup:=0;
+ 1  229:     bottllist:=1;
+ 1  230:     gettag(filelist,bottllist,llist,reg,foundtag);
+ 1  231:    
+ 1  232:     (* repeat system calls for tagged files *)
+ 1  233: 
+ 1  234:     repeat
+ 1  235:        tmpcommand:=command;
+VPas Version 1.05 [30-Jan-89]
+
+
+ 1  236:        gotoxy(40,50);
+ 1  237:        command[1]:='m';
+ 1  238:        command[2]:='v';
+ 1  239:        spot:=3;
+ 1  240:        addpathandname(filelist[reg].name,firstpath,command,spot,newspot);
+ 1  241: 
+ 1  242:        command[newspot+1]:=' ';
+ 1  243:        for i:=1 to pathsize(secondpath) do
+ 1  244:           command[newspot+1+i]:=secondpath[i];
+ 1  245:        command[newspot+2+i]:=chr(0);
+ 1  246: 
+ 1  247:        gotoxy(bigdirline,1);
+ 1  248:        if (tmpcommand<>command) then
+ 1  249:           begin
+ 2  250:           cond:=system(command);
+ 2  251:           gotoxy(messageline,1);
+ 2  252: 
+ 2  253:           if (cond<>0)
+ 2  254:              then
+ 2  255:              write('Error in moving ',firstpath,'/',filelist[reg].name)
+ 2  256: 
+ 2  257:              else
+ 2  258:              write('Moving ',firstpath,'/',filelist[reg].name);
+ 2  259:           end;
+ 1  260: 
+ 1  261:        dup:=bottllist;
+ 1  262:        gettag(filelist,bottllist,llist,reg,foundtag);
+ 1  263:        if (dup=bottllist) then again:=again+1;
+ 1  264: 
+ 1  265:        until (again=2);
+ 1  266: 
+ 1  267:     end;
+ 0  268: 
+ 0  269: procedure deletefile;
+ 0  270: 
+ 0  271: (*****************************************************************************
+ 0  272: 
+ 0  273:  Procedure deletefile
+ 0  274:  Purpose: This procedure determines the command and calls system with 'rm' +
+ 0  275:           path + name. Multiple deletes are also allowed with tagged files. 
+ 0  276: 
+ 0  277:  Parameters: filelist, llist, cond, apath
+ 0  278:  Called by: getcom
+ 0  279:  Calls: gettag, addpathandname, gotoxy, system
+ 0  280: 
+ 0  281:  *****************************************************************************)
+ 0  282: 
+VPas Version 1.05 [30-Jan-89]
+
+
+ 0  283: var i:integer; 
+ 0  284:     foundtag:boolean;
+ 0  285:     command,tmpcommand:string256;
+ 0  286: 
+ 0  287:    begin
+ 1  288:    foundtag:=FALSE;
+ 1  289:    again:=0;
+ 1  290:    dup:=0;
+ 1  291:    bottllist:=1;
+ 1  292:    gettag(filelist,bottllist,llist,reg,foundtag);
+ 1  293: 
+ 1  294:    (* repeat system calls for tagged files *)
+ 1  295: 
+ 1  296:    repeat
+ 1  297:       tmpcommand:=command;
+ 1  298:       command[1]:='r';
+ 1  299:       command[2]:='m';
+ 1  300:       spot:=3;
+ 1  301:       addpathandname(filelist[reg].name,apath,command,spot,newspot);
+ 1  302:       command[newspot+1]:=chr(0);
+ 1  303: 
+ 1  304:       gotoxy(bigdirline,1);
+ 1  305:       if (tmpcommand<>command) then
+ 1  306:          begin
+ 2  307:          cond:=system(command);
+ 2  308:       
+ 2  309:          gotoxy(messageline,1);
+ 2  310:          if (cond<>0)
+ 2  311:             then
+ 2  312:             write('Error in deleting :',apath,'/',filelist[reg].name)
+ 2  313:             else
+ 2  314:             write('Deleting ',apath,'/',filelist[reg].name);
+ 2  315:          end;
+ 1  316: 
+ 1  317:       dup:=bottllist;
+ 1  318:       gettag(filelist,bottllist,llist,reg,foundtag);
+ 1  319:       if (dup=bottllist) then again:=again+1;
+ 1  320: 
+ 1  321:       until (again=2);
+ 1  322: 
+ 1  323:    end;
+ 0  324: 
+ 0  325: procedure getname;
+ 0  326: 
+ 0  327: (*******************************************************************************
+ 0  328: 
+ 0  329:  Procedure getname
+VPas Version 1.05 [30-Jan-89]
+
+
+ 0  330:  Purpose: This procedure forms the packed array newname given user input.
+ 0  331:  
+ 0  332:  Parameters: newname
+ 0  333:  Called by: rename, makedir   
+ 0  334:  Calls: getchar 
+ 0  335: 
+ 0  336:  *******************************************************************************)
+ 0  337: 
+ 0  338: var ch:char;
+ 0  339:     p:integer;
+ 0  340: 
+ 0  341:    begin
+ 1  342:    p:=0;
+ 1  343:    repeat
+ 1  344:       p:=p+1;
+ 1  345:       ch:=getchar;
+ 1  346:       write(ch);
+ 1  347:       newname[p]:=ch;
+ 1  348:    until (p=namesize) or (ord(ch)=32);
+ 1  349:    end;
+ 0  350:       
+ 0  351:       
+ 0  352: procedure rename;
+ 0  353: 
+ 0  354: (*******************************************************************************
+ 0  355: 
+ 0  356:  Procedure rename
+ 0  357:  Purpose: This procedure determines the command and calls system with 'mv' + 
+ 0  358:           filelist.name + newname. Because this is a single file command,  
+ 0  359:           multiple renames are not allowed. 
+ 0  360: 
+ 0  361:  Parameters: filelist, llist, cond, apath
+ 0  362:  Called by: getcom
+ 0  363:  Calls: gettag, addpathandname, gotoxy, system 
+ 0  364: 
+ 0  365:  *******************************************************************************)
+ 0  366:   
+ 0  367: var i,j:integer; 
+ 0  368:     foundtag:boolean;
+ 0  369:     command:string256;
+ 0  370:     newname:nametype;
+ 0  371: 
+ 0  372:    begin
+ 1  373:    bottllist:=1;
+ 1  374:    gettag(filelist,bottllist,llist,reg,foundtag);
+ 1  375: 
+ 1  376:    (* if there are no tagged files, proceed by calling system *)
+VPas Version 1.05 [30-Jan-89]
+
+
+ 1  377: 
+ 1  378:    if (not (foundtag))
+ 1  379:       then
+ 1  380:       begin
+ 2  381:       command[1]:='m';
+ 2  382:       command[2]:='v';
+ 2  383:       spot:=3;
+ 2  384:       addpathandname(filelist[llist].name,apath,command,spot,newspot);
+ 2  385:       command[newspot+1]:=' ';
+ 2  386:       for i:=1 to pathsize(apath) do
+ 2  387:          command[newspot+1+i]:=apath[i];
+ 2  388:       newspot:=newspot+2+i;
+ 2  389:       command[newspot]:='/';
+ 2  390:       gotoxy(messageline,1);
+ 2  391:       write('Enter new name: ');
+ 2  392:       getname(newname);
+ 2  393:       j:=0;
+ 2  394:       repeat
+ 2  395:          j:=j+1;
+ 2  396:          command[newspot+j]:=newname[j];
+ 2  397:       until (j=namesize) or (newname[j]=' ');
+ 2  398:       command[newspot+2+j]:=chr(0);
+ 2  399:       
+ 2  400:       gotoxy(bigdirline,1);
+ 2  401:       cond:=system(command);
+ 2  402:       gotoxy(messageline,1);
+ 2  403:       if (cond<>0)
+ 2  404:          then
+ 2  405:          write('Error in renaming :',apath,'/',filelist[reg].name)
+ 2  406:          else
+ 2  407:          write('Renaming ',apath,'/',filelist[reg].name);
+ 2  408:       end
+ 1  409: 
+ 1  410:       else
+ 1  411:       begin
+ 2  412:       gotoxy(messageline,1);
+ 2  413:       write('Error- Cannot rename with tagged files.');
+ 2  414:       cond:=1;
+ 2  415:       end;
+ 1  416:    end; 
+ 0  417:       
+ 0  418: procedure makedir;
+ 0  419: 
+ 0  420: (********************************************************************************
+ 0  421: 
+ 0  422:  Procedure makedir
+ 0  423:  Purpose: This procedure determines the command and calls system with 'mkdir' +
+VPas Version 1.05 [30-Jan-89]
+
+
+ 0  424:           apath + newname. The procedure is not concerned with tagged files.
+ 0  425: 
+ 0  426:  Parameters: filelist, cond, apath
+ 0  427:  Called by: getcom
+ 0  428:  Calls: gotoxy, getname, addpathandname, system
+ 0  429: 
+ 0  430:  ********************************************************************************)
+ 0  431: 
+ 0  432: var i,j:integer; 
+ 0  433:     foundtag:boolean;
+ 0  434:     command:string256;
+ 0  435:     newname:nametype;
+ 0  436: 
+ 0  437:    begin
+ 1  438:    command[1]:='m';
+ 1  439:    command[2]:='k';
+ 1  440:    command[3]:='d';
+ 1  441:    command[4]:='i';
+ 1  442:    command[5]:='r';
+ 1  443:    spot:=6;
+ 1  444:    gotoxy(messageline,1);
+ 1  445:    write('Enter new directory: ');
+ 1  446:    getname(newname);
+ 1  447:    addpathandname(newname,apath,command,spot,newspot);
+ 1  448:    command[newspot+1]:=chr(0);
+ 1  449:    gotoxy(bigdirline,1);
+ 1  450:    cond:=system(command);
+ 1  451:    gotoxy(messageline,1);
+ 1  452:    if (cond<>0)
+ 1  453:       then
+ 1  454:       write('Error in making directory :',apath,'/',newname)
+ 1  455:       else
+ 1  456:       write('Making directory ',apath,'/',newname);
+ 1  457:    end;
+ 0  458: 
+ 0  459: procedure remdir;
+ 0  460: 
+ 0  461: (********************************************************************************
+ 0  462: 
+ 0  463:  Procedure remdir
+ 0  464:  Purpose: This procedure determines command by 'rmdir' + apath + filelist.name.
+ 0  465:           Also, tagged files are no concern.
+ 0  466: 
+ 0  467:  Parameters: filelist, llist, cond, apath
+ 0  468:  Called by: getcom
+ 0  469:  Calls: addpathandname, gotoxy, system
+ 0  470: 
+VPas Version 1.05 [30-Jan-89]
+
+
+ 0  471:  ********************************************************************************)
+ 0  472: 
+ 0  473:  
+ 0  474: var i,j:integer; 
+ 0  475:     command:string256;
+ 0  476: 
+ 0  477:    begin
+ 1  478:    command[1]:='r';
+ 1  479:    command[2]:='m';
+ 1  480:    command[3]:='d';
+ 1  481:    command[4]:='i';
+ 1  482:    command[5]:='r';
+ 1  483:    spot:=6;
+ 1  484:    addpathandname(filelist[llist].name,apath,command,spot,newspot);
+ 1  485:    command[newspot+1]:=chr(0);
+ 1  486:    gotoxy(bigdirline,1);
+ 1  487:    cond:=system(command);
+ 1  488:    gotoxy(messageline,1);
+ 1  489:    if (cond<>0)
+ 1  490:       then
+ 1  491:       write('Error in removing directory :',apath,'/',filelist[llist].name)
+ 1  492:       else
+ 1  493:       write('Removing directory ',apath,'/',filelist[llist].name);
+ 1  494:    end;
+ 0  495: 
+ 0  496: procedure edit;
+ 0  497: 
+ 0  498: (********************************************************************************
+ 0  499:  
+ 0  500:  Procedure edit
+ 0  501:  Purpose: This procedure determines command by 'vi' + apath + filelist.name.
+ 0  502:           It is a single command, so multiple edits are not allowed.
+ 0  503: 
+ 0  504:  Parameters: filelist, llist, cond, apath
+ 0  505:  Called by: getcom
+ 0  506:  Calls: gettag, addpathandname, gotoxy, system
+ 0  507: 
+ 0  508:  ********************************************************************************)
+ 0  509: 
+ 0  510: var foundtag:boolean;
+ 0  511:     command:string256;
+ 0  512:     newname:nametype;
+ 0  513: 
+ 0  514:    begin
+ 1  515:    bottllist:=1;
+ 1  516:    gettag(filelist,bottllist,llist,reg,foundtag);
+ 1  517: 
+VPas Version 1.05 [30-Jan-89]
+
+
+ 1  518:    (* if no tagged files are found proceed with system call *)
+ 1  519: 
+ 1  520:    if (not (foundtag))
+ 1  521:       then
+ 1  522:       begin
+ 2  523:       command[1]:='v';
+ 2  524:       command[2]:='i';
+ 2  525:       spot:=3;
+ 2  526:       addpathandname(filelist[llist].name,apath,command,spot,newspot);
+ 2  527:       command[newspot+1]:=chr(0);
+ 2  528:       gotoxy(bigdirline,1);
+ 2  529:       cond:=system(command);
+ 2  530:       gotoxy(messageline,1);
+ 2  531:       if (cond<>0)
+ 2  532:          then
+ 2  533:          write('Cannot edit ',apath,'/',filelist[llist].name);
+ 2  534:       end
+ 1  535: 
+ 1  536:       else
+ 1  537:       begin
+ 2  538:       gotoxy(messageline,1);
+ 2  539:       write('Error- Cannot edit with tagged files.');
+ 2  540:       cond:=1;
+ 2  541:       end;
+ 1  542:    end;
+ 0  543: 
+ 0  544: 
+ 0  545: procedure view;
+ 0  546: 
+ 0  547: (*******************************************************************************
+ 0  548: 
+ 0  549:  Procedure view
+ 0  550:  Purpose: This procedure determines command by 'more' + apath + filelist.name.
+ 0  551:           Again, it is a single command so multiple views are invalid.
+ 0  552: 
+ 0  553:  Parameters: filelist, llist, cond, apath
+ 0  554:  Called by: getcom
+ 0  555:  Calls: gettag, addpathandname, gotoxy, system
+ 0  556: 
+ 0  557:  *******************************************************************************)
+ 0  558: 
+ 0  559: var foundtag:boolean;
+ 0  560:     command:string256;
+ 0  561:     newname:nametype;
+ 0  562: 
+ 0  563:    begin
+ 1  564:    bottllist:=1;
+VPas Version 1.05 [30-Jan-89]
+
+
+ 1  565:    gettag(filelist,bottllist,llist,reg,foundtag);
+ 1  566: 
+ 1  567:    (* if no tagged files are found proceed with system call *)
+ 1  568: 
+ 1  569:    if (not (foundtag))
+ 1  570:       then
+ 1  571:       begin
+ 2  572:       command[1]:='m';
+ 2  573:       command[2]:='o';
+ 2  574:       command[3]:='r';
+ 2  575:       command[4]:='e';
+ 2  576:       spot:=5;  
+ 2  577:       addpathandname(filelist[llist].name,apath,command,spot,newspot);
+ 2  578:       command[newspot+1]:=chr(0);
+ 2  579:       gotoxy(bigdirline,1);
+ 2  580:       cond:=system(command);
+ 2  581:       gotoxy(messageline,1);
+ 2  582:       if (cond<>0)
+ 2  583:          then
+ 2  584:          write('Cannot view ',apath,'/',filelist[llist].name);
+ 2  585:       end
+ 1  586: 
+ 1  587:       else
+ 1  588:       begin
+ 2  589:       gotoxy(messageline,1);
+ 2  590:       write('Error- Cannot view with tagged files.');
+ 2  591:       cond:=1;
+ 2  592:       end;
+ 1  593:    end;
+ 0  594: 
+ 0  595: 
+ 0  596: 
+ 0  597: begin
+ 1  598: end.     (* unit menuunit *)
+ 0  599:   
+ 0  600:    
+VPas Version 1.05 [30-Jan-89]
+
+
+Procedures and functions
+
+     ADDPATHANDNAME (procedure) 40, 128
+     COPY (procedure) 42, 162
+     DELETEFILE (procedure) 46, 287
+     EDIT (procedure) 53, 514
+     GETNAME (procedure) 48, 341
+     GETTAG (procedure) 38, 75
+     MAKEDIR (procedure) 51, 437
+     MOVE (procedure) 44, 225
+     REMDIR (procedure) 52, 477
+     RENAME (procedure) 49, 372
+     VIEW (procedure) 54, 563
+

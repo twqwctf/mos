@@ -1,0 +1,74 @@
+
+
+uses rawio,introunit,dirlsunit,listpackunit,menuunit; 
+
+const
+   sizespot=15;         (* constants for where to print a field on the screen *)
+   datespot=23;
+   timespot=31;
+   kindspot=38;
+   pathspot=24;
+   errorrow=28;
+   thirtynine=39;
+   forty=40;
+   fortyone=41;
+   
+
+type
+   starttype=array[1..2] of integer;   (* array type for the index position
+                                          of the topmost index on the screen *)    
+
+   combartype=array[1..2] of integer;  (* array type for the current command
+                                          bar position *)
+
+var
+   combar                              (* command bar variable *)
+      :combartype;                      
+   start                               (* topmost index position variable *)
+      :starttype;               
+
+   adddupdir,                          (* boolean to determine if the opposite
+                                          directory needs to be reprinted in case
+                                          of an addition to the currect directory *) 
+
+   deldupdir                           (* identical to 'adddupdir' but in case of
+                                          a deletion or multiple deletion from the
+                                          current directory *)
+      :boolean;
+   oldsize                             (* holds the size of a directory before any
+                                          changes are made *)
+      :integer;                         
+   quit
+      :boolean;                        (* boolean to determine when to end mos *)
+
+
+procedure notifyendlist;
+procedure adjustpath  (var thepath:string256);
+procedure printpath   (firstpath,secondpath:string256);
+procedure printline   (var filelist:filedir;index:integer;
+                       var llist:integer;currrow:integer);
+procedure showlist    (var filelist:filedir;index,llist:integer;
+                       var listgreathun:boolean);
+procedure showbar     (var filelist:filedir;index:integer;var acombar,llist:integer);
+procedure showline    (var filelist:filedir;index:integer;var llist,acombar:integer);
+procedure traverseup  (var filelist:filedir;
+                       var index,acombar,astart,llist:integer);
+procedure traversedown(var filelist:filedir;
+                       var index,acombar,astart,llist:integer);
+procedure getnewpath  (var filelist:filedir;var llist:integer;var apath:string256);
+procedure pagedown    (var filelist:filedir;var index,llist,astart,acombar:integer;
+                       var apath:string256);
+procedure pageup      (var filelist:filedir;var index,llist,astart,acombar:integer;
+                       var apath:string256);
+procedure setup       (var filelist:filedir;var index,acombar,llist,
+                       avail,astart:integer;var apath:string256);
+procedure tagfile     (var filelist:filedir;var llist:integer);
+procedure untagall    (var filelist:filedir;var llist,index,acombar:integer;
+                       var listgreathun:boolean);
+procedure addadjustllist(var filelist:filedir;var llist,astart,acombar:integer);
+procedure deladjustllist(var filelist:filedir;var llist,astart,acombar,oldsize:integer);
+procedure reprint     (var dir:filetype;var index:integer);
+procedure getcom      (var filelist:filedir;var dir:filetype;var index,llist,
+                       astart,acombar:integer;
+                       var listgreathun:boolean;var apath:string256);
+implementation

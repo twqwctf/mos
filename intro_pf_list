@@ -1,0 +1,77 @@
+unit introunit;
+
+ Function getchar
+ Purpose: allows input from the user in rawio mode
+ 
+ Parameters: none         
+ Called by: helpscreen, clearscreen, getname, getcom 
+ Calls: none 
+
+ ******************************************************************************)
+
+ Procedure inverseoff
+ Purpose: returns test to normal video
+ 
+ Parameters: none
+ Called by: printpath, showbar, reprint, & main- mos
+ Calls: none
+
+ ******************************************************************************)
+
+ Procedure inverseon
+ Purpose: displays test in inverse video
+
+ Parameters: none
+ Called by: printpath, showbar, reprint, &
+ Calls: none
+
+ ******************************************************************************)
+
+ Procedure clearscreen
+ Purpose: This procedure clears the screen
+
+ Parameters: none
+ Called by: the main program, mos, reprint 
+ Calls: none
+
+ ******************************************************************************)
+ 
+ Procedure startupscreen
+ Purpose: this procedure is the startup or title screen for the program.
+          It contains information on the program and programmer.
+
+ Parameters: none
+ Called by: the main program, mos 
+ Calls: none
+ 
+ ******************************************************************************)
+ 
+ Procedure helpscreen
+ Purpose: writes a help screen to the user on how to operate the program.
+
+ Parameters: none
+ Called by: the main program, mos 
+ Calls: none
+
+ ******************************************************************************)
+
+ Procedure gotoxy
+ Purpose: This procedure, given a row and column, goes to that spot on the screen.
+
+ Parameters: row(what row to go to), col (what column to go to)
+ Called by: printline, printpath, getcom, showbar, showline, notifyendlist, 
+            getnewpath, tagfile, copy, move, deletefile, rename, edit, view, remdir
+            makedir
+ Calls: none
+
+ ********************************************************************************)
+
+ Procedure clearhalfscreen
+ Propose: this procedure clears the half of the screen determines by the index
+          sent in.
+
+ Parameters: the index, k (which side of the screen to clear)
+ Called by: setup, pagedown, pageup, getcom
+ Calls: gotoxy
+
+ ********************************************************************************)

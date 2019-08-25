@@ -1,0 +1,1335 @@
+VPas Version 1.05 [30-Jan-89]
+
+
+ 0    1: {$X+}
+ 0    2: unit browunit;
+ 0    3: 
+ 0    4: (*******************************************************************************
+ 0    5:  
+ 0    6:  unit browunit  
+ 0    7:  
+ 0    8:  contents: This unit, the largest unit of the program, contains all modules that
+ 0    9:            are responsible for the user's input, that is, all input such as the 
+ 0   10:            menu bar functions and the other functions such as traversing up and
+ 0   11:            down, paging up and down, and entering different directories. Also
+ 0   12:            included are the modules responsible for the path manipulation. 
+ 0   13: 
+ 0   14:  *******************************************************************************)
+ 0   15: 
+ 0   16: interface
+ 0   17: 
+ 0   18: uses rawio,introunit,dirlsunit,listpackunit,menuunit; 
+ 0   19: 
+ 0   20: const
+ 0   21:    sizespot=15;         (* constants for where to print a field on the screen *)
+ 0   22:    datespot=23;
+ 0   23:    timespot=31;
+ 0   24:    kindspot=38;
+ 0   25:    pathspot=24;
+ 0   26:    errorrow=28;
+ 0   27:    thirtynine=39;
+ 0   28:    forty=40;
+ 0   29:    fortyone=41;
+ 0   30:    
+ 0   31: 
+ 0   32: type
+ 0   33:    starttype=array[1..2] of integer;   (* array type for the index position
+ 0   34:                                           of the topmost index on the screen *)    
+ 0   35: 
+ 0   36:    combartype=array[1..2] of integer;  (* array type for the current command
+ 0   37:                                           bar position *)
+ 0   38: 
+ 0   39: var
+ 0   40:    combar                              (* command bar variable *)
+ 0   41:       :combartype;                      
+ 0   42:    start                               (* topmost index position variable *)
+ 0   43:       :starttype;               
+ 0   44: 
+ 0   45:    adddupdir,                          (* boolean to determine if the opposite
+ 0   46:                                           directory needs to be reprinted in case
+ 0   47:                                           of an addition to the currect directory *) 
+VPas Version 1.05 [30-Jan-89]
+
+
+ 0   48: 
+ 0   49:    deldupdir                           (* identical to 'adddupdir' but in case of
+ 0   50:                                           a deletion or multiple deletion from the
+ 0   51:                                           current directory *)
+ 0   52:       :boolean;
+ 0   53:    oldsize                             (* holds the size of a directory before any
+ 0   54:                                           changes are made *)
+ 0   55:       :integer;                         
+ 0   56:    quit
+ 0   57:       :boolean;                        (* boolean to determine when to end mos *)
+ 0   58: 
+ 0   59: 
+ 0   60: procedure notifyendlist;
+ 0   61: procedure adjustpath  (var thepath:string256);
+ 0   62: procedure printpath   (firstpath,secondpath:string256);
+ 0   63: procedure printline   (var filelist:filedir;index:integer;
+ 0   64:                        var llist:integer;currrow:integer);
+ 0   65: procedure showlist    (var filelist:filedir;index,llist:integer;
+ 0   66:                        var listgreathun:boolean);
+ 0   67: procedure showbar     (var filelist:filedir;index:integer;var acombar,llist:integer);
+ 0   68: procedure showline    (var filelist:filedir;index:integer;var llist,acombar:integer);
+ 0   69: procedure traverseup  (var filelist:filedir;
+ 0   70:                        var index,acombar,astart,llist:integer);
+ 0   71: procedure traversedown(var filelist:filedir;
+ 0   72:                        var index,acombar,astart,llist:integer);
+ 0   73: procedure getnewpath  (var filelist:filedir;var llist:integer;var apath:string256);
+ 0   74: procedure pagedown    (var filelist:filedir;var index,llist,astart,acombar:integer;
+ 0   75:                        var apath:string256);
+ 0   76: procedure pageup      (var filelist:filedir;var index,llist,astart,acombar:integer;
+ 0   77:                        var apath:string256);
+ 0   78: procedure setup       (var filelist:filedir;var index,acombar,llist,
+ 0   79:                        avail,astart:integer;var apath:string256);
+ 0   80: procedure tagfile     (var filelist:filedir;var llist:integer);
+ 0   81: procedure untagall    (var filelist:filedir;var llist,index,acombar:integer;
+ 0   82:                        var listgreathun:boolean);
+ 0   83: procedure addadjustllist(var filelist:filedir;var llist,astart,acombar:integer);
+ 0   84: procedure deladjustllist(var filelist:filedir;var llist,astart,acombar,oldsize:integer);
+ 0   85: procedure reprint     (var dir:filetype;var index:integer);
+ 0   86: procedure getcom      (var filelist:filedir;var dir:filetype;var index,llist,
+ 0   87:                        astart,acombar:integer;
+ 0   88:                        var listgreathun:boolean;var apath:string256);
+ 0   89: implementation
+ 0   90: 
+ 0   91: 
+ 0   92: procedure notifyendlist;
+ 0   93: 
+ 0   94: (*******************************************************************************
+VPas Version 1.05 [30-Jan-89]
+
+
+ 0   95:  
+ 0   96:  Procedure: notifyendlist
+ 0   97:  Purpose: This procedure notifys the user that he/she has reached the end of
+ 0   98:           the directory while traversing.       
+ 0   99: 
+ 0  100:  Parameters: none      
+ 0  101:  Called by: procedure traversedown, traverseup, pagedown, pageup 
+ 0  102:  Calls: none 
+ 0  103: 
+ 0  104:  *******************************************************************************)
+ 0  105:  
+ 0  106:    begin
+ 1  107:    gotoxy(errorrow,1);
+ 1  108:    write('Reached end of list');
+ 1  109:    end;
+ 0  110: 
+ 0  111: procedure adjustpath;
+ 0  112: 
+ 0  113: (*******************************************************************************
+ 0  114: 
+ 0  115:  Procedure: adjustpath
+ 0  116:  Purpose: if a path becomes greater than 39 characters long, this procedure accepts
+ 0  117:           the path as a value parameter and adjusts it so that the rightmost 36
+ 0  118:           characters appear at the right preceded by three periods-(...) 
+ 0  119: 
+ 0  120:  Parameters: a path (thepath)
+ 0  121:  Called by: procedure printpath
+ 0  122:  Calls: none
+ 0  123: 
+ 0  124:  *******************************************************************************)
+ 0  125:  
+ 0  126: var i:integer;
+ 0  127:    begin
+ 1  128:    for i:=1 to 3 do
+ 1  129:       thepath[i]:='.';
+ 1  130:    for i:=4 to thirtynine do
+ 1  131:       thepath[i]:=thepath[(pathsize(thepath)-36)+(i-3)];
+ 1  132:    end;
+ 0  133: 
+ 0  134: 
+ 0  135: procedure printpath;
+ 0  136: 
+ 0  137: (********************************************************************************
+ 0  138: 
+ 0  139:  Procedure : printpath
+ 0  140:  Purpose: This procedure accepts the two paths (path[1],path[2]), adjusts them if
+ 0  141:           necessary, and prints them to the appropriate spot on the screen.
+VPas Version 1.05 [30-Jan-89]
+
+
+ 0  142: 
+ 0  143:  Parameters: the two paths- path[1] and path[2]
+ 0  144:  Called by: procedure showlist
+ 0  145:  Calls: proc. gotoxy, inverseon, inverseoff, & adjustpath
+ 0  146: 
+ 0  147:  ********************************************************************************)
+ 0  148:  
+ 0  149:  var i,rearr:integer;
+ 0  150:    begin
+ 1  151:       
+ 1  152:    if (pathsize(firstpath)>forty)
+ 1  153:       then
+ 1  154:       adjustpath(firstpath);
+ 1  155:    if (pathsize(secondpath)>forty)
+ 1  156:       then
+ 1  157:       adjustpath(secondpath);
+ 1  158:    
+ 1  159:    gotoxy(pathspot,1);
+ 1  160:    write('                                                                                       ');
+ 1  161:    gotoxy(pathspot,1);
+ 1  162:    inverseon;
+ 1  163:    i:=0;
+ 1  164:    repeat
+ 1  165:       i:=i+1;
+ 1  166:       write(firstpath[i]);
+ 1  167:    until (i=thirtynine);
+ 1  168:    gotoxy(pathspot,fortyone);
+ 1  169:    i:=0;
+ 1  170:    repeat
+ 1  171:       i:=i+1;
+ 1  172:       write(secondpath[i]);
+ 1  173:    until (i=thirtynine);
+ 1  174:    inverseoff;
+ 1  175:    end;
+ 0  176: 
+ 0  177: 
+ 0  178: procedure printline;
+ 0  179: 
+ 0  180: (****************************************************************************** 
+ 0  181:  
+ 0  182:  Procedure: printline
+ 0  183:  Purpose: This procedure takes in the currentrow, currrow, and the filelist
+ 0  184:           and lastlist and then writes a line of the currect directory
+ 0  185:           at the appropriate spot on the screen, each field printed
+ 0  186:           separately.
+ 0  187: 
+ 0  188:  Parameters: filelist, index, currrow, and llist
+VPas Version 1.05 [30-Jan-89]
+
+
+ 0  189:  Called by: showlist,showbar,showline & getcom
+ 0  190:  Calls: gotoxy
+ 0  191: 
+ 0  192:  ******************************************************************************)
+ 0  193: 
+ 0  194:  var add:integer;
+ 0  195:    begin
+ 1  196:       if (index=2) then 
+ 1  197:          add:=forty
+ 1  198:          else
+ 1  199:          add:=0;
+ 1  200:          
+ 1  201:       gotoxy(currrow,1+add);
+ 1  202:       write(filelist[llist].name);
+ 1  203:       gotoxy(currrow,sizespot+add);
+ 1  204:       write(filelist[llist].size);
+ 1  205:       gotoxy(currrow,datespot+add);
+ 1  206:       write(filelist[llist].date);
+ 1  207:       gotoxy(currrow,timespot+add);
+ 1  208:       write(filelist[llist].time);
+ 1  209:       gotoxy(currrow,kindspot+add);
+ 1  210:       if (filelist[llist].kind)
+ 1  211:          then
+ 1  212:          write('dir')
+ 1  213:          else
+ 1  214:       if (filelist[llist].tag)
+ 1  215:          then
+ 1  216:          write('tag')
+ 1  217:          else
+ 1  218:          write('   ');
+ 1  219:    end;
+ 0  220: 
+ 0  221: procedure showlist;
+ 0  222: 
+ 0  223: (******************************************************************************
+ 0  224:  
+ 0  225:  Procedure: showlist
+ 0  226:  Purpose: this procedure prints out the appropriate section of the directory
+ 0  227:           to be traversed.
+ 0  228: 
+ 0  229:  Parameters: filelist,index,llist,listgreathun
+ 0  230:  Called by: procedures traverseup, traversedown, pageup, pagedown, setup, untagall,
+ 0  231:             reprint, & getcom 
+ 0  232:  Calls: printline, gotoxy, printpath
+ 0  233: 
+ 0  234:  ******************************************************************************)
+ 0  235:  
+VPas Version 1.05 [30-Jan-89]
+
+
+ 0  236: var currrow:integer;
+ 0  237:    begin
+ 1  238:    currrow:=mincombar;
+ 1  239:    while(llist<>0) and (currrow<=maxcombar) do
+ 1  240:       begin  
+ 2  241:       printline(filelist,index,llist,currrow);
+ 2  242:       currrow:=currrow+1;
+ 2  243:       llist:=filelist[llist].next;
+ 2  244:       end;           
+ 1  245: 
+ 1  246:    if (index=1)
+ 1  247:       then
+ 1  248:       gotoxy(bigdirline,1)
+ 1  249:       else
+ 1  250:       gotoxy(bigdirline,fortyone);
+ 1  251:    if (listgreathun)
+ 1  252:       then
+ 1  253:       write('Directory greater than 100 files/dirs')
+ 1  254:       else
+ 1  255:       write('                                     ');
+ 1  256: 
+ 1  257:       
+ 1  258:    printpath(path[1],path[2]);
+ 1  259:    end;
+ 0  260: 
+ 0  261: procedure showbar;
+ 0  262: 
+ 0  263: (*******************************************************************************
+ 0  264:  
+ 0  265:  Procedure: showbar
+ 0  266:  Purpose: prints the inverse video version of a line in the directory.       
+ 0  267: 
+ 0  268:  Parameters: filelist,index,combar,llist
+ 0  269:  Called by: procedure getcom
+ 0  270:  Calls: gotoxy,printline,inverseon,inverseoff
+ 0  271: 
+ 0  272:  *******************************************************************************)
+ 0  273: 
+ 0  274:    begin
+ 1  275:    gotoxy(acombar,1);
+ 1  276:    inverseon;
+ 1  277:    printline(filelist,index,llist,acombar);
+ 1  278:    inverseoff;
+ 1  279:    end;
+ 0  280: 
+ 0  281: procedure showline;
+ 0  282: 
+VPas Version 1.05 [30-Jan-89]
+
+
+ 0  283: (*******************************************************************************
+ 0  284: 
+ 0  285:  Procedure: showline
+ 0  286:  Purpose: prints the normal video version of a line in the directory           
+ 0  287: 
+ 0  288:  Parameters: filelist,index,combar,lastlist
+ 0  289:  Called by: procedure traverseup, traversedown, pageup, pagedown, & getcom
+ 0  290:  Calls: gotoxy,printline
+ 0  291: 
+ 0  292:  *******************************************************************************)
+ 0  293: 
+ 0  294:    begin
+ 1  295:    gotoxy(acombar,1);
+ 1  296:    printline(filelist,index,llist,acombar);
+ 1  297:    end;
+ 0  298: 
+ 0  299: 
+ 0  300: procedure traverseup;
+ 0  301: 
+ 0  302: (*******************************************************************************
+ 0  303:  
+ 0  304:  Procedure traverseup
+ 0  305:  Purpose: This procedure is responsible for allowing the user to traverse up
+ 0  306:           the directory one by one. 
+ 0  307: 
+ 0  308:  Parameters: a file list, index, acombar, astart, and llist
+ 0  309:  Called by: procedure getcom
+ 0  310:  Calls: showbar, showline, showlist, notifyendlist
+ 0  311: 
+ 0  312:  *******************************************************************************)
+ 0  313: 
+ 0  314: var backcombar:integer;
+ 0  315:    begin
+ 1  316:    if (acombar>mincombar)            (* not at top of list *)
+ 1  317:       then
+ 1  318:       begin 
+ 2  319:       acombar:=acombar-1;
+ 2  320:       llist:=filelist[llist].back;
+ 2  321: 
+ 2  322:       if (acombar<maxcombar)         (* not at bottom of list *)  
+ 2  323:          then
+ 2  324:          begin
+ 3  325:          backcombar:=acombar+1;
+ 3  326:          showline(filelist,index,filelist[llist].next,backcombar); 
+ 3  327:          end;
+ 2  328: 
+ 2  329:       end
+VPas Version 1.05 [30-Jan-89]
+
+
+ 1  330: 
+ 1  331:       else                           (* command bar somewhere in middle of list *)
+ 1  332:       if (llist<>1)
+ 1  333:          then
+ 1  334:          begin
+ 2  335:          llist:=filelist[llist].back;
+ 2  336:          astart:=astart-1;
+ 2  337:          showlist(filelist,index,astart,listgreathun);
+ 2  338:          end 
+ 1  339: 
+ 1  340:          else
+ 1  341:          notifyendlist;
+ 1  342:       
+ 1  343:    end;
+ 0  344: 
+ 0  345: 
+ 0  346: procedure traversedown;
+ 0  347: 
+ 0  348: (*******************************************************************************
+ 0  349: 
+ 0  350:  Procedure traversedown
+ 0  351:  Purpose: This procedure is responsible for allowing the user to traverse down
+ 0  352:           the directory one by one.
+ 0  353: 
+ 0  354:  Called by: getcom
+ 0  355:  Calls: showbar, showline, showlist, notifyendlist
+ 0  356: 
+ 0  357:  *******************************************************************************)
+ 0  358:  
+ 0  359: var backcombar:integer;
+ 0  360:    begin
+ 1  361:    if (filelist[llist].next<>0)
+ 1  362:       then
+ 1  363:       begin
+ 2  364:       if (acombar<maxcombar)         (* if not at bottom of list *)
+ 2  365:          then
+ 2  366:          begin
+ 3  367:          acombar:=acombar+1;
+ 3  368:          llist:=filelist[llist].next;
+ 3  369:          if (acombar>mincombar)      (* if not at top of list *)
+ 3  370:             then
+ 3  371:             begin
+ 4  372:             backcombar:=acombar-1;
+ 4  373:             showline(filelist,index,filelist[llist].back,backcombar);
+ 4  374:             end;
+ 3  375:  
+ 3  376:          end
+VPas Version 1.05 [30-Jan-89]
+
+
+ 2  377:  
+ 2  378:          else                        (* command bar somewhere in middle of list *)
+ 2  379:          begin
+ 3  380:          llist:=filelist[llist].next;
+ 3  381:          astart:=astart+1;
+ 3  382:          showlist(filelist,index,astart,listgreathun);
+ 3  383:          end;
+ 2  384: 
+ 2  385:       end
+ 1  386: 
+ 1  387:       else
+ 1  388:       notifyendlist;
+ 1  389:    end;
+ 0  390: 
+ 0  391: procedure getnewpath;
+ 0  392: 
+ 0  393: (*******************************************************************************
+ 0  394: 
+ 0  395:  Procedure getnewpath
+ 0  396:  Purpose: This procedure, once a new directory is being entered, adjusts the 
+ 0  397:           current path accordingly. 
+ 0  398: 
+ 0  399:  Parameters: filelist, llist, & apath
+ 0  400:  Called by: getcom
+ 0  401:  Calls: gotoxy, append, ls & listls
+ 0  402: 
+ 0  403:  *******************************************************************************)
+ 0  404: 
+ 0  405: var i,j,                                
+ 0  406:     origpathsize,addpathsize:integer;  
+ 0  407:     addpath:string20;
+ 0  408:     chr0:char;
+ 0  409: 
+ 0  410:    begin
+ 1  411:    chr0:=chr(0); 
+ 1  412:    origpathsize:=0;
+ 1  413:    addpathsize:=0;
+ 1  414:    for i:=1 to namesize do      (* clear out the path to be added *)
+ 1  415:       addpath[i]:=' ';
+ 1  416:    i:=0;
+ 1  417: 
+ 1  418:    (* determine the size of the original path *)
+ 1  419: 
+ 1  420:    repeat
+ 1  421:       i:=i+1;
+ 1  422:       origpathsize:=origpathsize+1;  (* determines size + 1 *) 
+ 1  423:    until (apath[i]=chr0);
+VPas Version 1.05 [30-Jan-89]
+
+
+ 1  424: 
+ 1  425:    
+ 1  426:    apath[origpathsize]:='/';
+ 1  427:    apath[origpathsize+1]:=chr0;
+ 1  428:    i:=0;
+ 1  429:    gotoxy(32,1);
+ 1  430:  
+ 1  431:    (* fill the packed array, addpath, with the name to be added *)
+ 1  432: 
+ 1  433:    repeat
+ 1  434:       i:=i+1;
+ 1  435:       if (i<=namesize)
+ 1  436:          then
+ 1  437:          begin
+ 2  438:          addpath[i]:=filelist[llist].name[i];
+ 2  439:          addpathsize:=addpathsize+1;
+ 2  440:          end;
+ 1  441:    until (addpath[i]=' ') or (i=namesize);
+ 1  442: 
+ 1  443:    if (ord(addpath[i])<>32) and (addpathsize=namesize)
+ 1  444:       then
+ 1  445:       addpathsize:=addpathsize+1;
+ 1  446:    i:=0;
+ 1  447:    addpath[addpathsize+1]:=chr0; 
+ 1  448:  
+ 1  449:    (* if the current position is the 'dot-dot' file *)
+ 1  450: 
+ 1  451:    if (filelist[llist].name='..            ')
+ 1  452:       then
+ 1  453:       begin
+ 2  454: 
+ 2  455:       if (origpathsize=2) then
+ 2  456:          begin
+ 3  457:          for i:=2 to addpathsize do
+ 3  458:             addpath[i-1]:=addpath[i];
+ 3  459:          addpath[addpathsize]:=chr0;
+ 3  460:          addpathsize:=addpathsize-1;
+ 3  461:          end;
+ 2  462: 
+ 2  463:       i:=string256size+1;
+ 2  464:       for j:=1 to 2 do
+ 2  465:          repeat
+ 2  466:             i:=i-1;
+ 2  467:             apath[i]:=' ';
+ 2  468:          until (apath[i-1]='/');
+ 2  469:         
+ 2  470: 
+VPas Version 1.05 [30-Jan-89]
+
+
+ 2  471:       j:=namesize+1;
+ 2  472:       repeat
+ 2  473:          j:=j-1;
+ 2  474:          addpath[j]:=' ';
+ 2  475:       until (j=1);
+ 2  476:    
+ 2  477:       if (i<>2)
+ 2  478:          then
+ 2  479:          apath[i-1]:=chr0
+ 2  480:          else
+ 2  481:          apath[i]:=chr0;
+ 2  482:       
+ 2  483: 
+ 2  484:       end
+ 1  485: 
+ 1  486:       else    (* if the current position isn't the 'dot-dot' file *)
+ 1  487: 
+ 1  488:       if (origpathsize=2)
+ 1  489:          then
+ 1  490:          begin
+ 2  491:          for i:=2 to origpathsize+addpathsize do
+ 2  492:             apath[i-1]:=apath[i];
+ 2  493: 
+ 2  494:          for i:=(origpathsize+addpathsize) to 256 do
+ 2  495:             apath[i]:=' ';
+ 2  496:          origpathsize:=origpathsize-1;
+ 2  497:          end;
+ 1  498:          
+ 1  499:       (* add addpatih to apath *)
+ 1  500:          
+ 1  501:       append(apath,addpath,origpathsize+1);
+ 1  502:       apath[origpathsize+addpathsize]:=chr0;
+ 1  503: 
+ 1  504:       ls(apath);
+ 1  505:       listls(lsfvar);
+ 1  506:    end;
+ 0  507: 
+ 0  508: procedure pagedown;
+ 0  509: 
+ 0  510: (*********************************************************************************
+ 0  511: 
+ 0  512:  Procedure pagedown
+ 0  513:  Purpose: This procedure allows the user to page twenty files down in the directory.
+ 0  514: 
+ 0  515:  Parameters: filelist, index, llist, astart, acombar & apath
+ 0  516:  Called by: getcom
+ 0  517:  Calls: clearhalfscreen, showlist, showline
+VPas Version 1.05 [30-Jan-89]
+
+
+ 0  518:  
+ 0  519:  *********************************************************************************)
+ 0  520: 
+ 0  521: var i,tmpllist,cnt,diff:integer;
+ 0  522: 
+ 0  523:    begin
+ 1  524:    cnt:=0;
+ 1  525:    tmpllist:=llist;
+ 1  526: 
+ 1  527:    (* move llist up twenty times or until hit the end of the list *)  
+ 1  528: 
+ 1  529:    while (filelist[llist].next<>0) and (cnt<>20) do
+ 1  530:       begin
+ 2  531:       cnt:=cnt+1;
+ 2  532:       llist:=filelist[llist].next;
+ 2  533:       end;
+ 1  534: 
+ 1  535:    (* if llist is not at the end, show the list from that position, llist, and
+ 1  536:       adjust llist to accomodate for retaining the same position on the screen *)
+ 1  537: 
+ 1  538:    if (filelist[llist].next<>0)
+ 1  539:       then
+ 1  540:       begin
+ 2  541:       clearhalfscreen(index);
+ 2  542:       showlist(filelist,index,llist,listgreathun);
+ 2  543:       for i:=1 to (acombar-3) do
+ 2  544:          begin
+ 3  545:          if (filelist[llist].next<>0)
+ 3  546:             then
+ 3  547:             llist:=filelist[llist].next
+ 3  548:             else
+ 3  549:             acombar:=acombar-1;
+ 3  550:          end;
+ 2  551: 
+ 2  552:       astart:=llist;
+ 2  553:       for i:=(acombar-1) downto mincombar do
+ 2  554:          astart:=filelist[astart].back;
+ 2  555:       end
+ 1  556: 
+ 1  557:    {---------------------------------------------------}
+ 1  558: 
+ 1  559:       (* the end of the list was reached *)
+ 1  560: 
+ 1  561:       else
+ 1  562:       begin
+ 2  563:       diff:=maxcombar-acombar;
+ 2  564: 
+VPas Version 1.05 [30-Jan-89]
+
+
+ 2  565:       (* if the end of the list is found to be off of the current list displayed 
+ 2  566:          on the screen *)
+ 2  567: 
+ 2  568:       if (cnt>diff)           
+ 2  569:          then
+ 2  570:          begin
+ 3  571:          clearhalfscreen(index);
+ 3  572:          if (acombar=mincombar)    (* if the command bar position is at the
+ 3  573:                                       topmost position *)
+ 3  574:             then
+ 3  575:             begin
+ 4  576:             cnt:=cnt-1;
+ 4  577:             tmpllist:=filelist[tmpllist].next;
+ 4  578:             end;
+ 3  579:          acombar:=mincombar+cnt;
+ 3  580:          if (acombar>maxcombar)    (* if acombar, after adjusted, is greater than
+ 3  581:                                       its most lower possible position *) 
+ 3  582:             then
+ 3  583:             begin
+ 4  584:             acombar:=maxcombar;
+ 4  585:             tmpllist:=filelist[tmpllist].next;
+ 4  586:             end;
+ 3  587:          showlist(filelist,index,tmpllist,listgreathun);
+ 3  588: 
+ 3  589:         (* adjust llist to retain the same command bar position *)
+ 3  590: 
+ 3  591:          astart:=llist;
+ 3  592:          for i:=(acombar-1) downto mincombar do
+ 3  593:             astart:=filelist[astart].back;
+ 3  594:          end
+ 2  595: 
+ 2  596:          (* if the end of the llist is displayed on the screen *)
+ 2  597: 
+ 2  598:          else
+ 2  599:          begin
+ 3  600:          if (filelist[tmpllist].back<>0)
+ 3  601:             then
+ 3  602:             begin
+ 4  603:             showline(filelist,index,filelist[filelist[tmpllist].back].next,acombar); 
+ 4  604:             notifyendlist;
+ 4  605:             end
+ 3  606:             else
+ 3  607:             showline(filelist,index,filelist[filelist[tmpllist].next].back,acombar); 
+ 3  608:             
+ 3  609:          for i:=1 to cnt do
+ 3  610:             acombar:=acombar+1;
+ 3  611:          end;
+VPas Version 1.05 [30-Jan-89]
+
+
+ 2  612:      end;
+ 1  613:    end;
+ 0  614:          
+ 0  615: 
+ 0  616: procedure pageup;
+ 0  617: 
+ 0  618: (*******************************************************************************
+ 0  619: 
+ 0  620:  Procedure pageup
+ 0  621:  Purpose: This procedure allows the user to page up the directory by twenty times.
+ 0  622: 
+ 0  623:  Parameters: filelist, index, llist, astart & acombar
+ 0  624:  Called by: getcom
+ 0  625:  Calls: clearhalfscreen, showlist, showline
+ 0  626: 
+ 0  627: ********************************************************************************)
+ 0  628: 
+ 0  629: var i,tmpllist,tmpcombar,cnt,diff:integer;
+ 0  630:    begin
+ 1  631:    cnt:=0;
+ 1  632:    tmpllist:=llist;
+ 1  633: 
+ 1  634:    (* move llist back twenty times or until reach end of list *)
+ 1  635: 
+ 1  636:    while (filelist[llist].back<>0) and (cnt<>20) do
+ 1  637:       begin
+ 2  638:       cnt:=cnt+1;
+ 2  639:       llist:=filelist[llist].back;
+ 2  640:       end;
+ 1  641: 
+ 1  642:    (* adjust llist further back to show the list however much the above loop
+ 1  643:       pushed llist back + the space between the uppermost position and the
+ 1  644:       previous llist *)
+ 1  645: 
+ 1  646:    tmpcombar:=acombar;
+ 1  647:    while (filelist[llist].back<>0) and (tmpcombar>mincombar) do
+ 1  648:       begin
+ 2  649:       tmpcombar:=tmpcombar-1;
+ 2  650:       llist:=filelist[llist].back;
+ 2  651:       end;
+ 1  652: 
+ 1  653:    (* if llist was moved back twenty times *)
+ 1  654: 
+ 1  655:    if (filelist[llist].back<>0)
+ 1  656:       then
+ 1  657:       begin
+ 2  658:       clearhalfscreen(index);
+VPas Version 1.05 [30-Jan-89]
+
+
+ 2  659:       showlist(filelist,index,llist,listgreathun);
+ 2  660: 
+ 2  661:       (* adjust llist again to retain same command bar position *)
+ 2  662:   
+ 2  663:       for i:=1 to (acombar-3) do
+ 2  664:          begin
+ 3  665:          if (filelist[llist].next<>0)
+ 3  666:             then
+ 3  667:             llist:=filelist[llist].next
+ 3  668:             else
+ 3  669:             acombar:=acombar-1;
+ 3  670:          end;
+ 2  671: 
+ 2  672:       astart:=llist;
+ 2  673: 
+ 2  674:       (* adjust the starting (topmost index) variable *)
+ 2  675:  
+ 2  676:       for i:=(acombar-1) downto mincombar do
+ 2  677:          astart:=filelist[astart].back;
+ 2  678:       end
+ 1  679: 
+ 1  680:       {----------------------------------------------------}
+ 1  681: 
+ 1  682:       else                  (* the end of the list was reached before reducing
+ 1  683:                                llist twenty times *)
+ 1  684:       begin
+ 2  685:       diff:=(maxcombar-(maxcombar-acombar))-mincombar;
+ 2  686: 
+ 2  687:       (* if the end of the list does not appear on the screen *)
+ 2  688: 
+ 2  689:       if (cnt>diff)
+ 2  690:          then
+ 2  691:          begin
+ 3  692:          clearhalfscreen(index);
+ 3  693:          if (acombar=maxcombar)
+ 3  694:             then
+ 3  695:             begin
+ 4  696:             cnt:=cnt+1;
+ 4  697:             tmpllist:=filelist[tmpllist].back;
+ 4  698:             end;
+ 3  699: 
+ 3  700:          showlist(filelist,index,llist,listgreathun);
+ 3  701:          acombar:=mincombar;
+ 3  702:          astart:=1;
+ 3  703:          end
+ 2  704: 
+ 2  705:          (* the end of the list appears on the screen *)
+VPas Version 1.05 [30-Jan-89]
+
+
+ 2  706: 
+ 2  707:          else
+ 2  708:          begin
+ 3  709: 
+ 3  710:          (* if at end of list *)
+ 3  711:  
+ 3  712:          if (filelist[tmpllist].next<>0)
+ 3  713:             then
+ 3  714:             begin
+ 4  715:             showline(filelist,index,filelist[filelist[tmpllist].next].back,acombar);
+ 4  716:             notifyendlist;
+ 4  717:             end
+ 3  718: 
+ 3  719:             (* if not at end of list *)
+ 3  720: 
+ 3  721:             else
+ 3  722:             showline(filelist,index,filelist[filelist[tmpllist].back].next,acombar);
+ 3  723:             acombar:=mincombar;
+ 3  724:             end;
+ 2  725:          end;
+ 1  726:    end;
+ 0  727: 
+ 0  728:        
+ 0  729:        
+ 0  730: 
+ 0  731: procedure setup;
+ 0  732: 
+ 0  733: (********************************************************************************
+ 0  734: 
+ 0  735:  Procedure setup
+ 0  736:  Purpose: This procedure is called by the main program to initially setup the
+ 0  737:           linked lists and show then on the screen. It is called with both 
+ 0  738:           indexes, that is, both linked lists (dir[1],dir[2]) are filled and
+ 0  739:           both are printed uniquely. Later, it may be called if another 
+ 0  740:           directory is entered. 
+ 0  741: 
+ 0  742:  Parameters: filelist, index, acombar, llist, avail, astart & apath
+ 0  743:  Called by: main program & getcom
+ 0  744:  Calls: clearhalfscreen, filllist, showlist
+ 0  745: 
+ 0  746:  ********************************************************************************)
+ 0  747: 
+ 0  748:    begin
+ 1  749:    clearhalfscreen(index);
+ 1  750:         
+ 1  751:    llist:=1;
+ 1  752:    filllist(filelist,llist,avail);
+VPas Version 1.05 [30-Jan-89]
+
+
+ 1  753:    llist:=1;
+ 1  754:    showlist(filelist,index,llist,listgreathun);
+ 1  755: 
+ 1  756:    acombar:=mincombar;
+ 1  757:    llist:=1;
+ 1  758:    astart:=1;
+ 1  759:    end;
+ 0  760: 
+ 0  761: procedure tagfile;
+ 0  762: 
+ 0  763: (*********************************************************************************
+ 0  764: 
+ 0  765:  Procedure tagfile
+ 0  766:  Purpose: This procedure assigns the field, tag, to an element of the linked list
+ 0  767:           if it is not a directory.
+ 0  768: 
+ 0  769:  Parameters: filelist, llist
+ 0  770:  Called by: getcom
+ 0  771:  Calls: gotoxy
+ 0  772: 
+ 0  773:  ********************************************************************************)
+ 0  774: 
+ 0  775:    begin
+ 1  776:    if not (filelist[llist].kind)
+ 1  777:       then
+ 1  778:       begin
+ 2  779:       filelist[llist].tag:=TRUE;
+ 2  780:       end 
+ 1  781:  
+ 1  782:       else
+ 1  783:       begin
+ 2  784:       gotoxy(errorrow,29);
+ 2  785:       write('Cannot tag directorys');
+ 2  786:       end;
+ 1  787:    end;
+ 0  788: 
+ 0  789:       
+ 0  790: procedure untagall;
+ 0  791: 
+ 0  792: (********************************************************************************
+ 0  793: 
+ 0  794:  Procedure untagall
+ 0  795:  Purpose: This procedure traverses the linked list and sets every tag field 
+ 0  796:           to false and re-shows the list 
+ 0  797: 
+ 0  798:  Parameters: filelist, llist, index, acombar, listgreathun 
+ 0  799:  Called by: getcom
+VPas Version 1.05 [30-Jan-89]
+
+
+ 0  800:  Calls: showlist
+ 0  801: 
+ 0  802:  ********************************************************************************)
+ 0  803: 
+ 0  804: var tmpllist,i:integer;
+ 0  805:    begin
+ 1  806:    for i:=1 to llistsize do
+ 1  807:       filelist[i].tag:=FALSE;
+ 1  808:    tmpllist:=llist;
+ 1  809:    for i:=acombar downto mincombar+1 do
+ 1  810:       tmpllist:=filelist[tmpllist].back;
+ 1  811:    showlist(filelist,index,tmpllist,listgreathun);
+ 1  812:    end;
+ 0  813: 
+ 0  814: 
+ 0  815: procedure addadjustllist;
+ 0  816: 
+ 0  817: (********************************************************************************
+ 0  818: 
+ 0  819:  Procedure addadjustllist
+ 0  820:  Purpose: This procedure adjusts llist (current index) if an addition has been 
+ 0  821:           made to a directory.
+ 0  822: 
+ 0  823:  Parameters: filelist, llist, astart, acombar
+ 0  824:  Called by: getcom 
+ 0  825:  Calls: none
+ 0  826: 
+ 0  827:  ********************************************************************************)
+ 0  828:   
+ 0  829: var i:integer;
+ 0  830:    begin
+ 1  831:    llist:=astart;
+ 1  832:    for i:=mincombar to acombar-1 do
+ 1  833:       llist:=filelist[llist].next;
+ 1  834:    end;
+ 0  835: 
+ 0  836: procedure deladjustllist;
+ 0  837: 
+ 0  838: (********************************************************************************
+ 0  839: 
+ 0  840:  Procedure deladjustllist
+ 0  841:  Purpose: This procedure adjusts llist (current index) if one or more deletions
+ 0  842:           have been made in a directory.
+ 0  843: 
+ 0  844:  Parameters: filelist, llist, astart, acombar, oldsize
+ 0  845:  Called by: getcom
+ 0  846:  Calls: none
+VPas Version 1.05 [30-Jan-89]
+
+
+ 0  847: 
+ 0  848:  ********************************************************************************)
+ 0  849: 
+ 0  850: var i,newsize,numrem:integer;
+ 0  851:    begin
+ 1  852:    newsize:=size(filelist);
+ 1  853:    numrem:=oldsize-newsize;
+ 1  854:    i:=0;
+ 1  855:    while (i<=numrem) and (astart>1) do
+ 1  856:       begin
+ 2  857:       astart:=filelist[astart].back; 
+ 2  858:       i:=i+1;
+ 2  859:       end;
+ 1  860:    llist:=astart;
+ 1  861:    acombar:=mincombar;
+ 1  862:    end;
+ 0  863:   
+ 0  864: procedure reprint;
+ 0  865: 
+ 0  866: (********************************************************************************
+ 0  867: 
+ 0  868:  Procedure reprint
+ 0  869:  Purpose: This procedure re-prints the entire screen after returning from an 
+ 0  870:           edit or view function.
+ 0  871: 
+ 0  872:  Parameters: dir (applicable to both lists) and index
+ 0  873:  Called by: getcom
+ 0  874:  Calls: clearscreen, gotoxy. inverseon, inverseoff, showlist
+ 0  875: 
+ 0  876:  ********************************************************************************)
+ 0  877: 
+ 0  878: var l:integer;
+ 0  879:    begin
+ 1  880:    clearscreen;
+ 1  881:    gotoxy(1,1);
+ 1  882:    inverseon;
+ 1  883:    writeln(menubar);
+ 1  884:    inverseoff;
+ 1  885:    gotoxy(2,1);
+ 1  886:    write(filehead);
+ 1  887:    gotoxy(2,fortyone);
+ 1  888:    write(filehead);
+ 1  889:    showlist(dir[index],index,start[index],listgreathun);
+ 1  890:    if (index=1) then l:=2
+ 1  891:       else l:=1;
+ 1  892:    showlist(dir[l],l,start[l],listgreathun);
+ 1  893:    end; 
+VPas Version 1.05 [30-Jan-89]
+
+
+ 0  894: 
+ 0  895: procedure getcom;
+ 0  896: 
+ 0  897: (*******************************************************************************
+ 0  898: 
+ 0  899:  Procedure: getcom
+ 0  900:  Purpose: This procedure allows the user to traverse a directory, and enter into
+ 0  901:           subdirectorys and higher directorys. Also, the user can enter command
+ 0  902:           bar functions which allow him or her to perform normal unix system 
+ 0  903:           commands on the directories dsplayed. The procedure checks for user
+ 0  904:           input and reacts according to the specifications on the assignment
+ 0  905:           sheet. A case statement is responsible for determining which procedure
+ 0  906:           to call given user input. 
+ 0  907: 
+ 0  908:  Parameters: filelist, dir, index, llist, astart, acombar, listgreathun, apath
+ 0  909:  Called by: main program and itself (recursive)
+ 0  910:  Calls: samepath, filllist, addadjustllist, deladjustllist, clearhalfscreen,
+ 0  911:         showlist, showbar, gotoxy, traverseup, traversedown, getnewpath, setup,
+ 0  912:         printline, pagedown, pageup, tagfile, untagall, copy, move, deletefile,
+ 0  913:         rename, makedir, remdir, edit, view, ls, listls & itself (recursive)
+ 0  914: 
+ 0  915:  *******************************************************************************)  
+ 0  916:   
+ 0  917: const
+ 0  918:    enter=32;
+ 0  919:    space=32;
+ 0  920:    up='A';
+ 0  921:    down='B';
+ 0  922:    tab=9;
+ 0  923:    upperD=100;
+ 0  924:    lowerd=68;
+ 0  925:    upperU=117;
+ 0  926:    loweru=85;
+ 0  927:    ordzero=48;
+ 0  928:    ordone=49;
+ 0  929:    ordtwo=50;
+ 0  930:    ordthree=51;
+ 0  931:    ordfour=52;
+ 0  932:    ordfive=53;
+ 0  933:    ordsix=54;
+ 0  934:    ordseven=55;
+ 0  935:    ordeight=56;
+ 0  936:    ordnine=57;
+ 0  937:    ordshiftnine=40;
+ 0  938:     
+ 0  939: var 
+ 0  940:     ordch,           (* the ordinal of a character *)
+VPas Version 1.05 [30-Jan-89]
+
+
+ 0  941:     i,               (* loop control var *)
+ 0  942:     l,               (* contains the index opposite the current directory *)
+ 0  943:     cond             (* return value of system procedure *)
+ 0  944:        :integer;
+ 0  945:     cmd:string256;
+ 0  946:     chrescape:char;  (* char variable which holds chr(escape) *)
+ 0  947:     ch,              (* assigned to getchar for user input *)
+ 0  948:     chr0,            (* chr function of zero *)
+ 0  949:     dummychar        (* assigned to getchar- dummy *)
+ 0  950:        :char;
+ 0  951: 
+ 0  952:    begin
+ 1  953:    chrescape:=chr(escape);
+ 1  954:    chr0:=chr(0);
+ 1  955: 
+ 1  956:    (* repeat loop for getting user input *)
+ 1  957: 
+ 1  958:    if (not(quit)) then
+ 1  959: 
+ 1  960:    repeat
+ 1  961: 
+ 1  962:       (* if an addition has been made to a directory and the directories are the 
+ 1  963:          same, the opposite to the current directory must be re-printed *)
+ 1  964: 
+ 1  965:       if (adddupdir)
+ 1  966:          then
+ 1  967:          if (samepath(path[1],path[2]))
+ 1  968:             then 
+ 1  969:             begin
+ 2  970:             if (index=1) then l:=2
+ 2  971:                else l:=1;
+ 2  972:             filllist(dir[l],lastlist[l],avail);
+ 2  973:             addadjustllist(dir[l],lastlist[l],start[l],combar[l]); 
+ 2  974:             clearhalfscreen(l);
+ 2  975:             showlist(dir[l],l,start[l],listgreathun);
+ 2  976:             end;
+ 1  977: 
+ 1  978:       (* similar to the above adddupdir condition but if one or more deletions
+ 1  979:          have been made to the current directory *)
+ 1  980: 
+ 1  981:       if (deldupdir)
+ 1  982:          then
+ 1  983:          if (samepath(path[1],path[2]))
+ 1  984:             then 
+ 1  985:             begin
+ 2  986:             if (index=1) then l:=2
+ 2  987:                else l:=1;
+VPas Version 1.05 [30-Jan-89]
+
+
+ 2  988:             filllist(dir[l],lastlist[l],avail);
+ 2  989:             deladjustllist(dir[l],lastlist[l],start[l],combar[l],oldsize);
+ 2  990:             clearhalfscreen(l);
+ 2  991:             showlist(dir[l],l,start[l],listgreathun);
+ 2  992:             end;
+ 1  993:       
+ 1  994:  
+ 1  995:       adddupdir:=FALSE;
+ 1  996:       deldupdir:=FALSE;
+ 1  997:       
+ 1  998:       showbar(filelist,index,acombar,llist);
+ 1  999:       gotoxy(26,1);
+ 1 1000:       ch:=getchar;
+ 1 1001:       write(chrescape,'[J');
+ 1 1002:       ordch:=ord(ch);
+ 1 1003: 
+ 1 1004:       (* the next if-then gets the extra ordinal values out of the way if a 
+ 1 1005:          char which returns multiple ordinal values is entered *)
+ 1 1006: 
+ 1 1007:       if ordch=27 then
+ 1 1008:          begin
+ 2 1009:          ch:=getchar;
+ 2 1010:          ch:=getchar;
+ 2 1011:          end;
+ 1 1012: 
+ 1 1013:       if ch='A'
+ 1 1014:          then 
+ 1 1015:          traverseup(filelist,index,acombar,astart,llist)
+ 1 1016:          else
+ 1 1017: 
+ 1 1018:       if ch='B'
+ 1 1019:          then
+ 1 1020:          traversedown(filelist,index,acombar,astart,llist)
+ 1 1021:          else
+ 1 1022: 
+ 1 1023:       (* case statement for the many possible user inputs *)
+ 1 1024:               
+ 1 1025:       case ordch of
+ 2 1026: 
+ 2 1027:       enter,space:           (* entering another directory *)
+ 2 1028:           begin
+ 3 1029:           if (filelist[llist].kind) then
+ 3 1030:              begin
+ 4 1031:              if (filelist[llist].name='.             ')
+ 4 1032:                 then
+ 4 1033:                 begin
+ 5 1034:                 gotoxy(errorrow,1);
+VPas Version 1.05 [30-Jan-89]
+
+
+ 5 1035:                 writeln('Current directory');
+ 5 1036:                 end
+ 4 1037: 
+ 4 1038:                 else
+ 4 1039:                 begin
+ 5 1040:                 getnewpath(filelist,llist,apath);
+ 5 1041:                 setup(filelist,index,acombar,llist,avail,astart,apath);
+ 5 1042:                 end;
+ 4 1043:              end;
+ 3 1044:           end;
+ 2 1045: 
+ 2 1046:        tab:                   (* toggling *) 
+ 2 1047:            begin
+ 3 1048:            printline(filelist,index,llist,acombar);
+ 3 1049:            if (index=1) then index:=2
+ 3 1050:                     else index:=1;
+ 3 1051:            getcom(dir[index],dir,index,lastlist[index],start[index],
+ 3 1052:                  combar[index],listgreathun,path[index]);
+ 3 1053:            end;
+ 2 1054: 
+ 2 1055:        
+ 2 1056: 
+ 2 1057:        upperD,lowerd :        (* paging down *)  
+ 2 1058:           pagedown(filelist,index,llist,astart,acombar,apath);
+ 2 1059: 
+ 2 1060:        upperU,loweru :        (* paging up *)
+ 2 1061:           pageup  (filelist,index,llist,astart,acombar,apath);
+ 2 1062: 
+ 2 1063:        ordnine :              (* tagging file *) 
+ 2 1064:           tagfile(filelist,llist);
+ 2 1065: 
+ 2 1066:        ordshiftnine :         (* untagging all files *)
+ 2 1067:           untagall(filelist,llist,index,acombar,listgreathun);
+ 2 1068: 
+ 2 1069:        ordone :               (* copying a file to non-current directory *)
+ 2 1070:           begin
+ 3 1071:           if (index=1) then l:=2
+ 3 1072:              else l:=1;
+ 3 1073:           copy(filelist,llist,cond,path[index],path[l]);
+ 3 1074:           if (cond=0)
+ 3 1075:              then
+ 3 1076:              begin
+ 4 1077:              ls(path[l]);
+ 4 1078:              listls(lsfvar);
+ 4 1079:              filllist(dir[l],lastlist[l],avail);
+ 4 1080:              showlist(dir[l],l,start[l],listgreathun);
+ 4 1081:              addadjustllist(dir[l],lastlist[l],start[l],combar[l]);
+VPas Version 1.05 [30-Jan-89]
+
+
+ 4 1082:              end;
+ 3 1083:           end;
+ 2 1084: 
+ 2 1085:        ordseven :             (* moving file to non-current directory *)
+ 2 1086:           begin
+ 3 1087:           l:=index;
+ 3 1088:           if (l=1) then l:=2
+ 3 1089:              else l:=1;
+ 3 1090:           move(filelist,llist,cond,path[index],path[l]);
+ 3 1091:           if (cond=0)
+ 3 1092:              then
+ 3 1093:              begin
+ 4 1094:              oldsize:=size(filelist);
+ 4 1095:              ls(path[l]);           (* destination list *)
+ 4 1096:              listls(lsfvar);
+ 4 1097:              filllist(dir[l],lastlist[l],avail);
+ 4 1098:              showlist(dir[l],l,start[l],listgreathun);
+ 4 1099:              addadjustllist(dir[l],lastlist[l],start[l],combar[l]);
+ 4 1100:           
+ 4 1101:              ls(path[index]);            (* current list *)
+ 4 1102:              listls(lsfvar);
+ 4 1103:              filllist(filelist,llist,avail);
+ 4 1104:              deladjustllist(filelist,llist,astart,acombar,oldsize);
+ 4 1105:              clearhalfscreen(index);
+ 4 1106:              showlist(filelist,index,astart,listgreathun);
+ 4 1107:              end;
+ 3 1108:           end;
+ 2 1109: 
+ 2 1110:        ordtwo :               (* deleting a file in current directory *) 
+ 2 1111:           begin
+ 3 1112:           deletefile(filelist,llist,cond,path[index]);
+ 3 1113:           if (cond=0)
+ 3 1114:              then
+ 3 1115:              begin
+ 4 1116:              oldsize:=size(filelist);
+ 4 1117:              ls(path[index]);            (* current list *)
+ 4 1118:              listls(lsfvar);
+ 4 1119:              filllist(filelist,llist,avail);
+ 4 1120:              deladjustllist(filelist,llist,astart,acombar,oldsize);
+ 4 1121:              clearhalfscreen(index);
+ 4 1122:              showlist(filelist,index,astart,listgreathun);
+ 4 1123:              deldupdir:=TRUE;
+ 4 1124:              end;
+ 3 1125:           end;
+ 2 1126: 
+ 2 1127:        ordeight :              (* renaming a file in current directory *)
+ 2 1128:           begin
+VPas Version 1.05 [30-Jan-89]
+
+
+ 3 1129:           rename(filelist,llist,cond,apath);
+ 3 1130:           if (cond=0)
+ 3 1131:              then
+ 3 1132:              begin
+ 4 1133:              ls(apath);
+ 4 1134:              listls(lsfvar);
+ 4 1135:              filllist(filelist,llist,avail);
+ 4 1136:              showlist(filelist,index,astart,listgreathun);
+ 4 1137:              addadjustllist(filelist,llist,astart,acombar);
+ 4 1138:              adddupdir:=TRUE;
+ 4 1139:              end;
+ 3 1140:           end;
+ 2 1141: 
+ 2 1142:        ordfive :               (* making a new directory in current dir *) 
+ 2 1143:           begin
+ 3 1144:           makedir(filelist,cond,apath);
+ 3 1145:           if (cond=0)
+ 3 1146:              then
+ 3 1147:              begin
+ 4 1148:              ls(apath);
+ 4 1149:              listls(lsfvar);
+ 4 1150:              filllist(filelist,llist,avail);
+ 4 1151:              showlist(filelist,index,astart,listgreathun);
+ 4 1152:              addadjustllist(filelist,llist,astart,acombar);
+ 4 1153:              adddupdir:=TRUE;
+ 4 1154:              end;
+ 3 1155:           end;
+ 2 1156:                 
+ 2 1157:        ordsix :                (* removing a dir in current dir *) 
+ 2 1158:           begin
+ 3 1159:           remdir(filelist,llist,cond,apath);
+ 3 1160:           if (cond=0)
+ 3 1161:              then
+ 3 1162:              begin
+ 4 1163:              oldsize:=size(filelist);
+ 4 1164:              ls(apath);
+ 4 1165:              listls(lsfvar);
+ 4 1166:              filllist(filelist,llist,avail);
+ 4 1167:              deladjustllist(filelist,llist,astart,acombar,oldsize);
+ 4 1168:              clearhalfscreen(index);
+ 4 1169:              showlist(filelist,index,astart,listgreathun);
+ 4 1170:              deldupdir:=TRUE;
+ 4 1171:              end;
+ 3 1172:           end;
+ 2 1173: 
+ 2 1174:        ordfour :               (* editing (vi) a file *)
+ 2 1175:           begin
+VPas Version 1.05 [30-Jan-89]
+
+
+ 3 1176:           edit(filelist,llist,cond,apath);
+ 3 1177:           if (cond=0)
+ 3 1178:              then
+ 3 1179:              begin
+ 4 1180:              gotoxy(35,1);
+ 4 1181:              write('HIT A KEY TO RETURN TO MOS');
+ 4 1182:              dummychar:=getchar;
+ 4 1183:              reprint(dir,index);            
+ 4 1184:              end;
+ 3 1185:           end;
+ 2 1186:              
+ 2 1187:        ordthree :              (* viewing (more) a file *)
+ 2 1188:           begin
+ 3 1189:           view(filelist,llist,cond,apath);
+ 3 1190:           if (cond=0) 
+ 3 1191:              then
+ 3 1192:              begin
+ 4 1193:              gotoxy(35,1);
+ 4 1194:              write('HIT A KEY TO RETURN TO MOS');
+ 4 1195:              dummychar:=getchar;
+ 4 1196:              reprint(dir,index);
+ 4 1197:              end;
+ 3 1198:           end;
+ 2 1199: 
+ 2 1200:        ordzero :
+ 2 1201:           begin
+ 3 1202:           quit:=TRUE;
+ 3 1203:           cmd[1]:='r';
+ 3 1204:           cmd[2]:='e';
+ 3 1205:           cmd[3]:='s';
+ 3 1206:           cmd[4]:='e';
+ 3 1207:           cmd[5]:='t';
+ 3 1208:           i:=system(cmd);
+ 3 1209:           clearscreen;
+ 3 1210:           writeln('Exit MOS - Menu Operating System - Version 1.0');
+ 3 1211:           end;
+ 2 1212: 
+ 2 1213:          else
+ 2 1214:          begin
+ 3 1215:          gotoxy(errorrow,1);
+ 3 1216:          write('invalid key');
+ 3 1217:          end;
+ 2 1218: 
+ 2 1219:     end; (* case *)
+ 1 1220: 
+ 1 1221:     until (quit);
+ 1 1222: 
+VPas Version 1.05 [30-Jan-89]
+
+
+ 1 1223:     end;  (* proc. getcom *)
+ 0 1224: 
+ 0 1225: 
+ 0 1226: begin
+ 1 1227: end.    (* unit browunit *)   
+ 0 1228:                      
+ 0 1229:      
+VPas Version 1.05 [30-Jan-89]
+
+
+Procedures and functions
+
+     ADDADJUSTLLIST (procedure) 83, 830
+     ADJUSTPATH (procedure) 61, 127
+     DELADJUSTLLIST (procedure) 84, 851
+     GETCOM (procedure) 86, 952
+     GETNEWPATH (procedure) 73, 410
+     NOTIFYENDLIST (procedure) 60, 106
+     PAGEDOWN (procedure) 74, 523
+     PAGEUP (procedure) 76, 630
+     PRINTLINE (procedure) 63, 195
+     PRINTPATH (procedure) 62, 150
+     REPRINT (procedure) 85, 879
+     SETUP (procedure) 78, 748
+     SHOWBAR (procedure) 67, 274
+     SHOWLINE (procedure) 68, 294
+     SHOWLIST (procedure) 65, 237
+     TAGFILE (procedure) 80, 775
+     TRAVERSEDOWN (procedure) 71, 360
+     TRAVERSEUP (procedure) 69, 315
+     UNTAGALL (procedure) 81, 805
+

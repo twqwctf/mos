@@ -1,0 +1,66 @@
+unit dirlsunit;
+
+ Procedure append
+ Purpose:  concats str20 onto end of str 256 at index len256 
+
+ Parameters: str256 (string 256 char long), str20 (string 20 char long), 
+             len256 (what index to append at)
+ Called by: ls, getnewpath
+ Calls: none
+
+ ********************************************************************************)
+
+ Procedure pwd
+ Purpose: This procedure directs the path to the working directory to /tmp/pwd.out.
+ 
+ Parameters :pwdfvar (output file var), apath
+ Called by: callprint
+ Calls: system
+
+ *********************************************************************************)
+
+ Procedure ls
+ Purpose: This procedure directs the directory listing to /tmp/ls.out
+ 
+ Parameters: apath
+ Called by: callprint, getcom
+ Calls: append, system
+
+ ********************************************************************************)
+
+ Procedure listls
+ Purpose: This procedure reads the input line by line from /tmp/ls.out
+
+ Parameters: none
+ Called by: getnewpath, getcom
+ Calls: none
+ 
+ **********************************************************************************)
+
+ Procedure callprint
+ Purpose: called by the main program, mos, to call ls and pwd firstly
+
+ Parameters: apath
+ Called by: main- mos
+ Calls: pwd, ls
+
+ ********************************************************************************)
+ 
+ Function pathsize
+ Purpose: This function accepts a path and returns its size (# of chars)   
+
+ Parameters: apath
+ Called by: samepath, addpathname, adjustpath, printpath, copy, move, rename
+ Calls: none
+
+ ********************************************************************************) 
+ 
+ Function samepath
+ Purpose: This function determines whether or not the two passed in paths are
+          the same and returns the appropriate boolean
+
+ Parameters: firstpath and secondpath
+ Called by: getcom   
+ Calls: pathsize
+
+ ********************************************************************************)

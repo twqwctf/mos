@@ -1,0 +1,42 @@
+unit listpackunit;
+
+ Function size
+ Purpose: This function determines the size of a directory
+
+ Parameters: filelist
+ Called by: deladjustllist, getcom
+ Calls: none
+
+ ****************************************************************************)
+ 
+ Procedure: getnode
+ Purpose: returns the index for the next available node 
+
+ Parameters: anylist (any dir linked list) ,llist,avail
+ Called by: filllist
+ Calls: none
+
+ *****************************************************************************)
+
+ Procedure: initlist
+ Purpose: fills the back and next indexes of the linked list in a linked
+          manner so that the back and next fields are linked together. If a
+          node were to be deleted, the back and next fields would have to be
+          altered accordingly to maintain the linked list.
+
+ Parameters:  anylist
+ Called by: filllist
+ Calls: none
+
+ *****************************************************************************)
+ 
+ Procedure filllist
+ Purpose: This procedure reads the current dir from ls.out and fills the linked
+          lists' nodes with the appropriate fields. Then, in either case of the 
+          dir being less than, equal to, or greater than 50 elements, the end
+          of the list is denoted by a zero in the next field following the
+          last full node.
+
+ Parameters: anylist,lastlist,avail
+ Called by: setup, getcom 
+ Calls: getnode,initlist

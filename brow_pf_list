@@ -1,0 +1,210 @@
+unit browunit;
+
+NOTE: Parameter explinations are universal to all procedures; An explanation
+      will follow a parameter the first time its listed.
+
+ Procedure: notifyendlist
+ Purpose: This procedure notifys the user that he/she has reached the end of
+          the directory while traversing.	
+
+ Parameters: none      
+ Called by: procedure traversedown, traverseup, pagedown, pageup 
+ Calls: none 
+
+ *********************************************************************************
+
+ Procedure: adjustpath
+ Purpose: if a path becomes greater than 39 characters long, this procedure accepts
+          the path as a value parameter and adjusts it so that the rightmost 36
+          characters appear at the right preceded by three periods-(...) 
+
+ Parameters: a path (thepath)
+ Called by: procedure printpath
+ Calls: none
+
+ *********************************************************************************
+
+ Procedure : printpath
+ Purpose: This procedure accepts the two paths (path[1],path[2]), adjusts them if
+          necessary, and prints them to the appropriate spot on the screen.
+
+ Parameters: the two paths- path[1] and path[2]
+ Called by: procedure showlist
+ Calls: proc. gotoxy, inverseon, inverseoff, & adjustpath
+
+ ********************************************************************************)
+
+ Procedure: printline
+ Purpose: This procedure takes in the currentrow, currrow, and the filelist
+          and lastlist and then writes a line of the currect directory
+          at the appropriate spot on the screen, each field printed
+          separately.
+
+ Parameters: filelist, (the dir linked list), index (which dir to work
+             with) ,currrow (where to print - at a row, and llist (the 
+             linked list index)
+ Called by: showlist,showbar,showline & getcom
+ Calls: gotoxy
+
+ ******************************************************************************)
+ 
+ Procedure: showlist
+ Purpose: this procedure prints out the appropriate section of the directory
+          to be traversed.
+
+ Parameters: filelist,index,llist,listgreathun (boolean variable
+             - denotes whether dir is > 100 elem) 
+ Called by: procedures traverseup, traversedown, pageup, pagedown, setup, untagall,
+            reprint, & getcom 
+ Calls: printline, gotoxy, printpath
+
+ ******************************************************************************)
+ 
+ Procedure: showbar
+ Purpose: prints the inverse video version of a line in the directory.       
+
+ Parameters: filelist, index, combar, lastlist
+ Called by: procedure getcom
+ Calls: gotoxy,printline,inverseon,inverseoff
+
+ *******************************************************************************)
+
+ Procedure: showline
+ Purpose: prints the normal video version of a line in the directory           
+
+ Parameters: filelist,index,acombar(the current command bar position),llist
+ Called by: procedure traverseup, traversedown, pageup, pagedown, & getcom
+ Calls: gotoxy,printline
+
+ *******************************************************************************)
+ 
+ Procedure traverseup
+ Purpose: This procedure is responsible for allowing the user to traverse up
+          the directory one by one. 
+
+ Parameters: a file list-filelist,  index, acombar, astart(the top-
+             most dir index which appears on the screen), and llist
+ Called by: procedure getcom
+ Calls: showbar, showline, showlist, notifyendlist
+
+ *******************************************************************************)
+
+ Procedure traversedown
+ Purpose: This procedure is responsible for allowing the user to traverse down
+          the directory one by one.
+
+ Called by: getcom
+ Calls: showbar, showline, showlist, notifyendlist
+
+ *******************************************************************************)
+
+ Procedure getnewpath
+ Purpose: This procedure, once a new directory is being entered, adjusts the 
+          current path accordingly. 
+
+ Parameters: filelist, llist, & apath(the current pathname)
+ Called by: getcom
+ Calls: gotoxy, append, ls & listls
+
+(*********************************************************************************
+
+ Procedure pagedown
+ Purpose: This procedure allows the user to page twenty files down in the directory.
+
+ Parameters: filelist, index, llist, astart, acombar & apath
+ Called by: getcom
+ Calls: clearhalfscreen, showlist, showline
+ 
+ *********************************************************************************)
+
+ Procedure pageup
+ Purpose: This procedure allows the user to page up the directory by twenty times.
+
+ Parameters: filelist, index, llist, astart & acombar
+ Called by: getcom
+ Calls: clearhalfscreen, showlist, showline
+
+********************************************************************************)
+
+ Procedure setup
+ Purpose: This procedure is called by the main program to initially setup the
+          linked lists and show then on the screen. It is called with both 
+          indexes, that is, both linked lists (dir[1],dir[2]) are filled and
+          both are printed uniquely. Later, it may be called if another 
+          directory is entered. 
+
+ Parameters: filelist, index, acombar, llist, avail(the variable for the
+             available node ), astart & apath
+ Called by: main program & getcom
+ Calls: clearhalfscreen, filllist, showlist
+
+ ********************************************************************************)
+
+ Procedure tagfile
+ Purpose: This procedure assigns the field, tag, to an element of the linked list
+          if it is not a directory.
+
+ Parameters: filelist, llist
+ Called by: getcom
+ Calls: gotoxy
+
+ ********************************************************************************)
+
+ Procedure untagall
+ Purpose: This procedure traverses the linked list and sets every tag field 
+          to false and re-shows the list 
+
+ Parameters: filelist, llist, index, acombar, listgreathun 
+ Called by: getcom
+ Calls: showlist
+
+ ********************************************************************************)
+
+ Procedure addadjustllist
+ Purpose: This procedure adjusts llist (current index) if an addition has been 
+          made to a directory.
+
+ Parameters: filelist, llist, astart, acombar
+ Called by: getcom 
+ Calls: none
+
+ ********************************************************************************)
+
+ Procedure deladjustllist
+ Purpose: This procedure adjusts llist (current index) if one or more deletions
+          have been made in a directory.
+
+ Parameters: filelist, llist, astart, acombar, oldsize (the previous dir size
+             before changes) 
+ Called by: getcom
+ Calls: none
+
+ ********************************************************************************)
+
+ Procedure reprint
+ Purpose: This procedure re-prints the entire screen after returning from an 
+          edit or view function.
+
+ Parameters: dir (file linked list applicable to both lists) and index
+ Called by: getcom
+ Calls: clearscreen, gotoxy. inverseon, inverseoff, showlist
+
+ ********************************************************************************)
+
+ Procedure: getcom
+ Purpose: This procedure allows the user to traverse a directory, and enter into
+          subdirectorys and higher directorys. Also, the user can enter command
+          bar functions which allow him or her to perform normal unix system 
+          commands on the directories dsplayed. The procedure checks for user
+          input and reacts according to the specifications on the assignment
+          sheet. A case statement is responsible for determining which procedure
+          to call given user input. 
+
+ Parameters: filelist, dir, index, llist, astart, acombar, listgreathun, apath
+ Called by: main program and itself (recursive)
+ Calls: samepath, filllist, addadjustllist, deladjustllist, clearhalfscreen,
+        showlist, showbar, gotoxy, traverseup, traversedown, getnewpath, setup,
+        printline, pagedown, pageup, tagfile, untagall, copy, move, deletefile,
+        rename, makedir, remdir, edit, view, ls, listls & itself (recursive)
+
+ *******************************************************************************)  

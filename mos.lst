@@ -1,0 +1,99 @@
+VPas Version 1.05 [30-Jan-89]
+
+
+ 0    1: {$X+}
+ 0    2: program mos;
+ 0    3: 
+ 0    4: (********************************************************************************
+ 0    5:  *                                                                              *
+ 0    6:  * Program: mos                                                                 *
+ 0    7:  * Programmer: Greg Fudala                                                      *
+ 0    8:  * Soc. sec #: xxx-xx-xxxx                                                      *
+ 0    9:  * Due date: April 24, 1989                                                     *
+ 0   10:  * System: Apple Mac II                                                         *
+ 0   11:  * Compiler: VP 1.05                                                            *
+ 0   12:  *                                                                              *
+ 0   13:  *                                   Purpose                                    *
+ 0   14:  *                                                                              *
+ 0   15:  * This program is MOS, the menu operating system. It allows the user to        *
+ 0   16:  * view and manipulate directories under the UNIX operation system.             *
+ 0   17:  *                                                                              *
+ 0   18:  * The screen consists of two directories. Upon execution, both directories     * 
+ 0   19:  * are the current directory- (where the command to execute MOS was from)       *
+ 0   20:  * The user is allowed to traverse the directory. This is done two ways. The    *
+ 0   21:  * user can press the up & down arrow keys to move in the directory up and      *
+ 0   22:  * down respectively, or skipping twenty files at a time, up or down, is        *
+ 0   23:  * allowed. Also, the user may toggle between the two directories. Note:        * 
+ 0   24:  * the program is limited to a maximum of one-hundred files and or directories  *
+ 0   25:  * in a directory list.                                                         * 
+ 0   26:  *                                                                              *
+ 0   27:  * In addition, the user may enter other directories. In this way, it is        *
+ 0   28:  * possible to display any two-directory combination at once in the directory   *
+ 0   29:  * hierarchy.                                                                   *
+ 0   30:  *                                                                              *
+ 0   31:  * The main feature of the program is the capability to perform UNIX operating  *
+ 0   32:  * system commands between the two directories displayed. The commands cp,      *
+ 0   33:  * rm, more, vi, mkdir, rmdir, & mv can be accessed. Also, several of these     *
+ 0   34:  * commands can performed in multiples. In this way, the user can tag a group   *
+ 0   35:  * of files and has the choice to perform a cp, rm, or mv routine. Another      *
+ 0   36:  * feature enables the user to un-tag all files in a directory at once. The     *
+ 0   37:  * pathname for the directory appears beneath each directory list.              *
+ 0   38:  * When the user has completed his or her tasks, the exit command returns the   *
+ 0   39:  * user to the directory from where he or she first executed MOS.               *  
+ 0   40:  *                                                                              *
+ 0   41:  * Input: Input is mainly directly from the user. However, the program does     *
+ 0   42:  *        access the external devices by calling the system routine, another    *
+ 0   43:  *        from of input.                                                        *
+ 0   44:  *                                                                              *
+ 0   45:  * Output: The only output is printed to the screen and written to external     *
+ 0   46:  *         files /tmp/ls/out and /tmp/pwd.out.                                  *
+ 0   47:  *                                                                              *
+VPas Version 1.05 [30-Jan-89]
+
+
+ 0   48:  ********************************************************************************)
+ 0   49: 
+ 0   50: uses rawio,introunit,dirlsunit,listpackunit,menuunit,browunit;
+ 0   51: 
+ 0   52: var k:integer;
+ 0   53: 
+ 0   54: begin
+ 1   55: direct_io;     (* turns off keyboard buffering *)
+ 1   56: 
+ 1   57: (* initial introduction *)
+ 1   58: 
+ 1   59: clearscreen;
+ 1   60: startupscreen;
+ 1   61: clearscreen;
+ 1   62: helpscreen;
+ 1   63: clearscreen;
+ 1   64: callprint(path[1]);
+ 1   65: callprint(path[2]);
+ 1   66: 
+ 1   67: (* fill the list and show it. Then, allow traversing and moving in the directory
+ 1   68:    hierarchy *)
+ 1   69: 
+ 1   70: gotoxy(1,1);
+ 1   71: inverseon;
+ 1   72: writeln(menubar);
+ 1   73: inverseoff;
+ 1   74: gotoxy(2,1);
+ 1   75: write(filehead);
+ 1   76: gotoxy(2,41);
+ 1   77: write(filehead);
+ 1   78: k:=1;
+ 1   79: setup(dir[1],k,combar[1],lastlist[1],avail,start[1],path[1]);
+ 1   80: listls(lsfvar);
+ 1   81: k:=2;
+ 1   82: setup(dir[2],k,combar[2],lastlist[2],avail,start[2],path[2]);
+ 1   83: k:=1;
+ 1   84: getcom(dir[1],dir,k,lastlist[1],start[1],combar[1],listgreathun,path[1]);
+ 1   85: 
+ 1   86: end.   (* main- mos *)
+ 0   87: 
+VPas Version 1.05 [30-Jan-89]
+
+
+Procedures and functions
+
+

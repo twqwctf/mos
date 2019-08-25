@@ -1,0 +1,41 @@
+
+
+uses rawio,introunit,dirlsunit,listpackunit; 
+
+const
+    messageline=26;
+    bigdirline=30;
+
+var 
+    bottllist,       (* variable which, upon traversing the linked list searching
+                        for tagged files, keeps the last index when the procedure
+                        gettag exited *)
+    reg,             (* variable which is the index for the tagged file (if any) *)
+    dup,             (* is assigned to reg to determine whether a duplicate
+                        register (reg) was returned from gettag *)
+    again,           (* counter to signify the end of a system calling loop *) 
+    spot,            (* variable which holds the next available index to add to
+                        a packed array (command) *)  
+    newspot          (* similar to spot; a re-assigned index to fill 'command' *)
+       :integer;
+
+
+procedure gettag(var filelist:filedir;var tmpllist,llist,reg:integer;var foundtag
+                 :boolean);
+procedure addpathandname(var aname:nametype;var apath,command:string256;
+                         var spot,newspot:integer);
+procedure copy(var filelist:filedir;var llist,cond:integer;
+               firstpath,secondpath:string256);
+procedure move(var filelist:filedir;var llist,cond:integer;
+               firstpath,secondpath:string256);
+procedure deletefile(var filelist:filedir;var llist,cond:integer;
+                     apath:string256);
+procedure getname(var newname:nametype);
+procedure rename(var filelist:filedir;var llist,cond:integer;
+                     apath:string256);
+procedure makedir(var filelist:filedir;var cond:integer;apath:string256);
+procedure remdir (var filelist:filedir;var llist,cond:integer;apath:string256);
+procedure edit   (var filelist:filedir;var llist,cond:integer;apath:string256);
+procedure view   (var filelist:filedir;var llist,cond:integer;apath:string256);
+
+implementation

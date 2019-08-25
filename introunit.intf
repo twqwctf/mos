@@ -1,0 +1,23 @@
+
+
+uses rawio;
+
+const
+   escape=27;         (* escape constant *)
+   mincombar=3;       (* minimum command bar position- row *)
+   maxcombar=22;      (* maximum command bar position- row *)
+   filehead='file name       size   date   time  type';
+   menubar='1copy  2del  3view   4edit  5mkdir  6rmdir  7mv   8ren  9tag   (untagall   0exit';
+
+
+function getchar:char;
+procedure inverseoff;
+procedure inverseon;
+procedure startupscreen;
+procedure clearscreen;
+procedure helpscreen;
+procedure gotoxy(row,col:integer);
+procedure clearhalfscreen(k:integer);
+
+
+IMPLEMENTATION

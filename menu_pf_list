@@ -1,0 +1,117 @@
+unit menuunit;
+
+ Procedure gettag
+ Purpose: This procedure traverses a directory and, if finding a tagged file,
+          returns the index. If no tagged files are found, the present index,
+          llist, is simply returned.
+
+ Parameters: filelist, tmpllist, llist, reg & foundtag
+ Called by: copy, move, deletefile, rename, view & edit
+ Calls: none
+
+ **********************************************************************************)
+
+ Procedure addpathname
+ Purpose: This procedure accepts a name, a path, a command, and an index and adds
+          the path and name respectively to the command at index
+
+ Parameters: aname(filename to be added), apath, command (the new command
+             passed out), spot (where to add new name initially) and newspot
+             (a new index to be returned for further adding)
+ Called by: copy, move, deletefile, rename, makedir, remdir, edit and view
+ Calls: none
+
+ ******************************************************************************)
+
+ Procedure copy
+ Purpose: This procedure determines the correct command and calls system with
+          'cp' + firstpath + filelist.name secondpath + filelist.name. 
+          Multiple copies are possible with tagged files.  
+
+ Parameters: filelist, llist, cond, firstpath, secondpath
+ Called by: getcom
+ Calls: gettag, addpathandname, gotoxy, system
+
+ *******************************************************************************)
+
+ Procedure move
+ Purpose: This procedure determines command and calls system with 'cp' + 
+          firstpath + filelist.name secondpath 
+          In addition, multiple moves are possible if files are tagged. 
+
+ Parameters: filelist, llist, cond (whether or not the menu bar operation
+             was sussessful) , firstpath (path[1]) , secondpath (path[2])
+ Called by: getcom
+ Calls: gettag, addpathandname, gotoxy, system
+
+ ******************************************************************************)
+
+ Procedure deletefile
+ Purpose: This procedure determines the command and calls system with 'rm' +
+          path + name. Multiple deletes are also allowed with tagged files. 
+
+ Parameters: filelist, llist, cond, apath
+ Called by: getcom
+ Calls: gettag, addpathandname, gotoxy, system
+
+ *****************************************************************************)
+
+ Procedure getname
+ Purpose: This procedure forms the packed array newname given user input.
+ 
+ Parameters: newname (new user inputed name to be returned) 
+ Called by: rename, makedir   
+ Calls: getchar 
+
+ *******************************************************************************)
+
+ Procedure rename
+ Purpose: This procedure determines the command and calls system with 'mv' + 
+          filelist.name + newname. Because this is a single file command,  
+          multiple renames are not allowed. 
+
+ Parameters: filelist, llist, cond, apath
+ Called by: getcom
+ Calls: gettag, addpathandname, gotoxy, system 
+
+ *******************************************************************************)
+  
+ Procedure makedir
+ Purpose: This procedure determines the command and calls system with 'mkdir' +
+          apath + newname. The procedure is not concerned with tagged files.
+
+ Parameters: filelist, cond, apath
+ Called by: getcom
+ Calls: gotoxy, getname, addpathandname, system
+
+ ********************************************************************************)
+
+ Procedure remdir
+ Purpose: This procedure determines command by 'rmdir' + apath + filelist.name.
+          Also, tagged files are no concern.
+
+ Parameters: filelist, llist, cond, apath
+ Called by: getcom
+ Calls: addpathandname, gotoxy, system
+
+ ********************************************************************************)
+ 
+ Procedure edit
+ Purpose: This procedure determines command by 'vi' + apath + filelist.name.
+          It is a single command, so multiple edits are not allowed.
+
+ Parameters: filelist, llist, cond, apath
+ Called by: getcom
+ Calls: gettag, addpathandname, gotoxy, system
+
+ ********************************************************************************)
+
+ Procedure view
+ Purpose: This procedure determines command by 'more' + apath + filelist.name.
+          Again, it is a single command so multiple views are invalid.
+
+ Parameters: filelist, llist, cond, apath
+ Called by: getcom
+ Calls: gettag, addpathandname, gotoxy, system
+
+ *******************************************************************************)

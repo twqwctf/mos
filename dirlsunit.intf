@@ -1,0 +1,32 @@
+
+
+   const string256size=256;
+         string20size=20;
+
+   type
+      string20=packed array[1..string20size] of char;
+      string256=packed array[1..string256size] of char;
+      pathtype=array[1..2] of string256;
+   var
+      syscom:string20;
+      path:pathtype;         (* the array variable for a path *)
+      lsfvar,pwdfvar:text;   (* output files *)
+
+
+function system(var syscom:string256):integer;
+
+(* C ext. lanf. fnc. to call UNIX sys. routines *)
+   cexternal;     
+
+procedure append(var str256:string256;
+                 var str20:string20;
+                 len256:integer);
+procedure pwd(var pwdfvar:text;
+              var apath:string256);
+procedure ls(var apath:string256);
+procedure listls(var lsfvar:text);
+procedure callprint(var apath:string256);
+function pathsize(apath:string256):integer;
+function samepath(firstpath,secondpath:string256):boolean;
+
+implementation
